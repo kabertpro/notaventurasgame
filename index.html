@@ -1,0 +1,1532 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NOTAVENTURAS GAME – KABERT STUDIO</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #0a0e2e;
+  --deep: #0d1340;
+  --mid: #111847;
+  --blue: #1a237e;
+  --cyan: #00b4d8;
+  --cyan2: #0077b6;
+  --gold: #ffd60a;
+  --gold2: #ffb703;
+  --white: #f0f4ff;
+  --gray: #8892b0;
+  --green: #00f5d4;
+  --red: #ff4d6d;
+  --purple: #7b2fff;
+  --pink: #f72585;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:100%; height:100%; overflow:hidden; }
+body {
+  background: var(--navy);
+  font-family: 'Nunito', sans-serif;
+  color: var(--white);
+  overflow: hidden;
+}
+
+/* STARS BACKGROUND */
+#stars-canvas {
+  position: fixed; top:0; left:0; width:100%; height:100%;
+  pointer-events: none; z-index:0;
+}
+
+/* SCREENS */
+.screen {
+  position: fixed; top:0; left:0; width:100%; height:100%;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 10; opacity:0; pointer-events:none;
+  transition: opacity 0.5s ease;
+}
+.screen.active { opacity:1; pointer-events:all; }
+
+/* ===== SPLASH SCREEN ===== */
+#splash {
+  background: radial-gradient(ellipse at center, #1a237e 0%, #0a0e2e 70%);
+}
+.splash-logo {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(2.5rem, 8vw, 5rem);
+  color: var(--gold);
+  text-shadow: 0 0 40px #ffd60a88, 0 4px 0 #b8860b;
+  letter-spacing: 3px;
+  animation: pulse-logo 2s ease-in-out infinite;
+  text-align: center;
+}
+.splash-note-icon {
+  font-size: 5rem;
+  animation: float 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 20px var(--cyan));
+}
+.splash-subtitle {
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(0.7rem, 2vw, 1rem);
+  color: var(--cyan);
+  letter-spacing: 8px;
+  margin-top: 0.5rem;
+  opacity: 0.85;
+}
+.splash-loading {
+  margin-top: 3rem;
+  display: flex; align-items: center; gap: 12px;
+  color: var(--gray);
+  font-size: 0.9rem;
+}
+.loader-bar {
+  width: 200px; height: 4px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 10px; overflow: hidden;
+}
+.loader-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--cyan), var(--gold));
+  border-radius: 10px;
+  animation: load 2.5s ease forwards;
+}
+@keyframes load { to { width: 100%; } }
+@keyframes pulse-logo {
+  0%,100% { transform: scale(1); text-shadow: 0 0 40px #ffd60a88, 0 4px 0 #b8860b; }
+  50% { transform: scale(1.03); text-shadow: 0 0 60px #ffd60acc, 0 4px 0 #b8860b; }
+}
+@keyframes float {
+  0%,100% { transform: translateY(0) rotate(-5deg); }
+  50% { transform: translateY(-15px) rotate(5deg); }
+}
+
+/* ===== AUTH SCREEN ===== */
+#auth { background: radial-gradient(ellipse at 30% 30%, #1a237e44 0%, transparent 60%), var(--navy); }
+.auth-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(0,180,216,0.3);
+  border-radius: 24px;
+  padding: 2.5rem;
+  width: min(420px, 92vw);
+  box-shadow: 0 0 60px rgba(0,180,216,0.1);
+}
+.auth-title {
+  font-family: 'Fredoka One', cursive;
+  font-size: 1.8rem; color: var(--gold);
+  text-align: center; margin-bottom: 1.5rem;
+}
+.auth-tabs {
+  display: flex; gap:4px; margin-bottom:1.5rem;
+  background: rgba(255,255,255,0.05); border-radius:12px; padding:4px;
+}
+.auth-tab {
+  flex:1; padding:0.5rem; border:none; border-radius:10px;
+  background:transparent; color:var(--gray);
+  font-family:'Nunito',sans-serif; font-size:0.9rem; font-weight:700;
+  cursor:pointer; transition:all 0.2s;
+}
+.auth-tab.active { background:var(--cyan2); color:#fff; }
+.auth-input {
+  width:100%; padding:0.75rem 1rem; margin-bottom:0.75rem;
+  background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.1);
+  border-radius:12px; color:var(--white); font-size:0.95rem;
+  font-family:'Nunito',sans-serif; outline:none;
+  transition: border-color 0.2s;
+}
+.auth-input:focus { border-color: var(--cyan); }
+.auth-input::placeholder { color: var(--gray); }
+.btn-primary {
+  width:100%; padding:0.85rem; border:none; border-radius:14px;
+  background: linear-gradient(135deg, var(--cyan2), var(--cyan));
+  color:#fff; font-family:'Fredoka One',cursive; font-size:1.1rem;
+  cursor:pointer; transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 4px 20px rgba(0,180,216,0.3);
+}
+.btn-primary:hover { transform:translateY(-2px); box-shadow:0 6px 28px rgba(0,180,216,0.45); }
+.btn-primary:active { transform:translateY(0); }
+.btn-ghost {
+  width:100%; padding:0.7rem; border:1px solid rgba(255,255,255,0.15);
+  border-radius:14px; background:transparent; color:var(--gray);
+  font-family:'Nunito',sans-serif; font-size:0.9rem; font-weight:700;
+  cursor:pointer; margin-top:0.5rem; transition:all 0.2s;
+}
+.btn-ghost:hover { border-color:var(--gold); color:var(--gold); }
+.auth-divider { text-align:center; color:var(--gray); font-size:0.85rem; margin:0.75rem 0; }
+
+/* ===== MAIN MENU ===== */
+#menu { background: radial-gradient(ellipse at 60% 20%, #1a237e55 0%, transparent 60%), var(--navy); padding:1rem; }
+.menu-header { text-align:center; margin-bottom:2rem; }
+.menu-logo {
+  font-family:'Fredoka One',cursive;
+  font-size:clamp(1.8rem,5vw,3rem);
+  color:var(--gold);
+  text-shadow: 0 0 30px #ffd60a66;
+}
+.menu-user { color:var(--cyan); font-size:0.9rem; margin-top:0.25rem; }
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px; width:100%; max-width:700px;
+}
+.menu-btn {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:8px; padding:1.2rem 0.5rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(0,180,216,0.2);
+  border-radius:20px; cursor:pointer;
+  transition: all 0.25s; text-decoration:none;
+  color:var(--white); font-family:'Nunito',sans-serif; font-weight:700;
+}
+.menu-btn:hover {
+  background:rgba(0,180,216,0.12);
+  border-color:var(--cyan);
+  transform:translateY(-4px);
+  box-shadow:0 8px 24px rgba(0,180,216,0.2);
+}
+.menu-btn .icon { font-size:2rem; }
+.menu-btn .label { font-size:0.85rem; color:var(--cyan); }
+.menu-star-count {
+  display:flex; align-items:center; gap:6px;
+  background:rgba(255,214,10,0.1); border:1px solid rgba(255,214,10,0.3);
+  border-radius:20px; padding:0.4rem 1rem; margin-top:0.75rem;
+  font-family:'Fredoka One',cursive; color:var(--gold); font-size:1rem;
+}
+
+/* ===== MODE SELECT ===== */
+#modes { background: var(--navy); overflow-y:auto; padding:2rem 1rem; }
+.modes-title {
+  font-family:'Fredoka One',cursive; font-size:2rem; color:var(--gold);
+  text-align:center; margin-bottom:1.5rem;
+}
+.modes-grid {
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:16px; max-width:800px; width:100%;
+}
+.mode-card {
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:20px; padding:1.5rem;
+  cursor:pointer; transition:all 0.25s;
+  position:relative; overflow:hidden;
+}
+.mode-card:hover {
+  transform:translateY(-4px);
+  box-shadow:0 12px 32px rgba(0,0,0,0.3);
+}
+.mode-card.locked { opacity:0.5; cursor:not-allowed; }
+.mode-card .mode-icon { font-size:2.5rem; margin-bottom:0.75rem; display:block; }
+.mode-card h3 { font-family:'Fredoka One',cursive; font-size:1.2rem; color:var(--gold); }
+.mode-card p { font-size:0.82rem; color:var(--gray); margin-top:0.25rem; }
+.mode-card .mode-badge {
+  position:absolute; top:12px; right:12px;
+  background:var(--purple); color:#fff;
+  font-size:0.7rem; font-weight:800;
+  padding:2px 8px; border-radius:20px;
+}
+
+/* ===== GAME SCREEN ===== */
+#game { background: var(--deep); flex-direction:row; align-items:stretch; }
+.game-sidebar {
+  width:200px; min-width:160px;
+  background:rgba(255,255,255,0.03);
+  border-right:1px solid rgba(255,255,255,0.07);
+  padding:1rem; display:flex; flex-direction:column;
+  gap:1rem;
+}
+.game-main {
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  padding:1rem; gap:1.5rem;
+}
+.score-box {
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(0,180,216,0.2);
+  border-radius:14px; padding:0.75rem;
+  text-align:center;
+}
+.score-box .slabel { font-size:0.72rem; color:var(--gray); text-transform:uppercase; letter-spacing:1px; }
+.score-box .sval {
+  font-family:'Fredoka One',cursive; font-size:1.8rem; color:var(--gold);
+  line-height:1;
+}
+.score-box .sval.green { color:var(--green); }
+.score-box .sval.cyan { color:var(--cyan); }
+.combo-text {
+  font-family:'Fredoka One',cursive; font-size:1rem; color:var(--pink);
+  text-align:center;
+}
+.timer-ring { position:relative; width:80px; height:80px; margin:0 auto; }
+.timer-ring svg { transform:rotate(-90deg); }
+.timer-ring .timer-num {
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  font-family:'Fredoka One',cursive; font-size:1.5rem; color:var(--white);
+}
+.lives { display:flex; gap:4px; justify-content:center; flex-wrap:wrap; }
+.life-heart { font-size:1.2rem; transition:all 0.3s; }
+.life-heart.lost { filter:grayscale(1); opacity:0.3; transform:scale(0.8); }
+
+/* PENTAGRAMA */
+.staff-container {
+  position:relative; width:min(540px,90vw);
+}
+.staff-wrap {
+  position:relative;
+  background:rgba(255,255,255,0.03);
+  border-radius:16px;
+  padding:1.5rem;
+  box-shadow:0 0 40px rgba(0,0,0,0.4);
+  overflow:visible;
+}
+.staff-svg { width:100%; display:block; }
+
+/* NOTE HEAD */
+.note-head-container {
+  position:absolute;
+  transition: top 0.4s cubic-bezier(0.34,1.56,0.64,1),
+              left 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  pointer-events:none;
+  display:flex; flex-direction:column; align-items:center;
+}
+.note-head-img {
+  width:40px; height:40px;
+  object-fit:contain;
+  filter:drop-shadow(0 0 8px rgba(0,180,216,0.6));
+  animation:noteFloat 1.5s ease-in-out infinite;
+}
+@keyframes noteFloat {
+  0%,100%{transform:translateY(0) rotate(-3deg);}
+  50%{transform:translateY(-4px) rotate(3deg);}
+}
+.note-stem {
+  width:2px; height:30px;
+  background:var(--white); margin-top:-1px;
+}
+
+/* ANSWER BUTTONS */
+.answer-grid {
+  display:flex; flex-wrap:wrap; gap:10px;
+  justify-content:center; max-width:500px;
+}
+.note-btn {
+  padding:0.6rem 1.2rem; border:2px solid rgba(255,255,255,0.2);
+  border-radius:14px; background:rgba(255,255,255,0.06);
+  color:var(--white); font-family:'Fredoka One',cursive; font-size:1.3rem;
+  cursor:pointer; transition:all 0.18s; min-width:70px;
+  user-select:none;
+}
+.note-btn:hover { background:rgba(0,180,216,0.2); border-color:var(--cyan); transform:scale(1.07); }
+.note-btn.correct { background:rgba(0,245,212,0.2) !important; border-color:var(--green) !important; color:var(--green) !important; }
+.note-btn.wrong { background:rgba(255,77,109,0.2) !important; border-color:var(--red) !important; color:var(--red) !important; animation:shake 0.3s; }
+@keyframes shake {
+  0%,100%{transform:translateX(0);}
+  25%{transform:translateX(-6px);}
+  75%{transform:translateX(6px);}
+}
+
+/* PIANO KEYBOARD */
+.piano-wrap {
+  display:flex; align-items:flex-end; gap:2px;
+  border-radius:0 0 12px 12px; overflow:visible;
+}
+.piano-key {
+  border-radius:0 0 8px 8px; cursor:pointer;
+  display:flex; align-items:flex-end; justify-content:center;
+  padding-bottom:6px; font-family:'Fredoka One',cursive;
+  transition:all 0.1s; user-select:none; position:relative;
+  font-size:0.75rem;
+}
+.piano-key.white {
+  width:42px; height:120px; background:var(--white); color:#444;
+  border:1px solid #ccc; z-index:1;
+}
+.piano-key.black {
+  width:26px; height:76px; background:#1a1a2e; color:rgba(255,255,255,0.6);
+  margin-left:-13px; margin-right:-13px; z-index:2;
+}
+.piano-key:hover { filter:brightness(0.88); }
+.piano-key.white.active { background:var(--cyan); }
+.piano-key.black.active { background:var(--cyan2); }
+.piano-key.correct-key { background:var(--green) !important; }
+.piano-key.wrong-key { background:var(--red) !important; }
+
+/* FEEDBACK OVERLAY */
+.feedback-overlay {
+  position:fixed; top:0; left:0; width:100%; height:100%;
+  display:flex; align-items:center; justify-content:center;
+  pointer-events:none; z-index:100;
+}
+.feedback-popup {
+  font-family:'Fredoka One',cursive; font-size:clamp(2rem,8vw,4rem);
+  font-weight:900; opacity:0;
+  animation: feedPop 0.8s ease forwards;
+  text-shadow:0 4px 20px rgba(0,0,0,0.5);
+}
+@keyframes feedPop {
+  0%{opacity:0;transform:scale(0.5) translateY(20px);}
+  40%{opacity:1;transform:scale(1.1) translateY(-10px);}
+  70%{opacity:1;transform:scale(1);}
+  100%{opacity:0;transform:scale(0.9) translateY(-30px);}
+}
+.feedback-popup.correct { color:var(--green); }
+.feedback-popup.wrong { color:var(--red); }
+
+/* PARTICLES */
+.particle {
+  position:fixed; pointer-events:none; z-index:200;
+  border-radius:50%;
+  animation:partFly 0.8s ease-out forwards;
+}
+@keyframes partFly {
+  0%{opacity:1;transform:translate(0,0) scale(1);}
+  100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(0);}
+}
+
+/* ===== CUSTOMIZE ===== */
+#customize { background:var(--navy); padding:1rem; overflow-y:auto; }
+.customize-title { font-family:'Fredoka One',cursive; font-size:2rem; color:var(--gold); text-align:center; margin-bottom:1.5rem; }
+.heads-grid {
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr));
+  gap:12px; max-width:700px; width:100%;
+}
+.head-card {
+  background:rgba(255,255,255,0.04); border:2px solid rgba(255,255,255,0.1);
+  border-radius:16px; padding:1rem 0.5rem; text-align:center;
+  cursor:pointer; transition:all 0.2s;
+}
+.head-card:hover { border-color:var(--cyan); transform:scale(1.05); }
+.head-card.selected { border-color:var(--gold); background:rgba(255,214,10,0.1); }
+.head-card img { width:60px; height:60px; object-fit:contain; }
+.head-card p { font-size:0.78rem; color:var(--cyan); margin-top:0.5rem; font-weight:700; }
+
+/* ===== RANKING ===== */
+#ranking { background:var(--navy); padding:1rem; overflow-y:auto; }
+.ranking-title { font-family:'Fredoka One',cursive; font-size:2rem; color:var(--gold); text-align:center; margin-bottom:1.5rem; }
+.rank-tabs { display:flex; gap:4px; background:rgba(255,255,255,0.05); border-radius:12px; padding:4px; max-width:400px; width:100%; margin-bottom:1rem; }
+.rank-tab { flex:1; padding:0.5rem; border:none; border-radius:10px; background:transparent; color:var(--gray); font-family:'Nunito',sans-serif; font-size:0.85rem; font-weight:700; cursor:pointer; transition:all 0.2s; }
+.rank-tab.active { background:var(--cyan2); color:#fff; }
+.rank-list { max-width:600px; width:100%; }
+.rank-item {
+  display:flex; align-items:center; gap:12px; padding:0.75rem 1rem;
+  background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07);
+  border-radius:14px; margin-bottom:8px;
+}
+.rank-pos { font-family:'Fredoka One',cursive; font-size:1.2rem; width:32px; text-align:center; }
+.rank-pos.gold { color:var(--gold); }
+.rank-pos.silver { color:#c0c0c0; }
+.rank-pos.bronze { color:#cd7f32; }
+.rank-avatar { width:36px; height:36px; border-radius:50%; object-fit:contain; background:rgba(0,180,216,0.1); border:1px solid rgba(0,180,216,0.3); }
+.rank-name { flex:1; font-weight:700; }
+.rank-score { font-family:'Fredoka One',cursive; color:var(--gold); }
+
+/* ===== TUTORIAL ===== */
+#tutorial { background:var(--navy); padding:2rem 1rem; overflow-y:auto; }
+.tutorial-title { font-family:'Fredoka One',cursive; font-size:2rem; color:var(--gold); text-align:center; margin-bottom:1.5rem; }
+.tutorial-card { background:rgba(255,255,255,0.04); border:1px solid rgba(0,180,216,0.2); border-radius:20px; padding:1.5rem; max-width:600px; width:100%; margin-bottom:1rem; }
+.tutorial-card h3 { font-family:'Fredoka One',cursive; color:var(--cyan); font-size:1.2rem; margin-bottom:0.75rem; }
+.tutorial-card p { color:var(--gray); font-size:0.9rem; line-height:1.7; }
+
+/* ===== RESULT SCREEN ===== */
+#result { background:radial-gradient(ellipse at center, #1a237e 0%, #0a0e2e 70%); }
+.result-title { font-family:'Fredoka One',cursive; font-size:clamp(2rem,6vw,3.5rem); text-align:center; }
+.result-title.win { color:var(--gold); }
+.result-title.lose { color:var(--red); }
+.result-stars { display:flex; gap:8px; margin:1rem 0; }
+.result-star { font-size:2.5rem; animation:starPop 0.4s ease backwards; }
+.result-star.lit { filter:drop-shadow(0 0 10px #ffd60a); }
+.result-star.dim { filter:grayscale(1); opacity:0.4; }
+@keyframes starPop { 0%{transform:scale(0) rotate(30deg);} 100%{transform:scale(1) rotate(0);} }
+.result-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; max-width:400px; width:100%; margin:1rem 0; }
+.result-stat { background:rgba(255,255,255,0.05); border-radius:14px; padding:0.75rem; text-align:center; }
+.result-stat .rlabel { font-size:0.72rem; color:var(--gray); }
+.result-stat .rval { font-family:'Fredoka One',cursive; font-size:1.4rem; color:var(--cyan); }
+.result-btns { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+.btn-result {
+  padding:0.8rem 2rem; border:none; border-radius:14px;
+  font-family:'Fredoka One',cursive; font-size:1.1rem; cursor:pointer;
+  transition:transform 0.15s;
+}
+.btn-result:hover { transform:scale(1.05); }
+.btn-result.replay { background:linear-gradient(135deg,var(--cyan2),var(--cyan)); color:#fff; }
+.btn-result.menu { background:rgba(255,255,255,0.1); color:var(--white); border:1px solid rgba(255,255,255,0.2); }
+
+/* NAV BACK */
+.nav-back {
+  position:fixed; top:12px; left:12px; z-index:300;
+  background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15);
+  border-radius:12px; padding:0.5rem 1rem;
+  color:var(--white); font-family:'Nunito',sans-serif; font-weight:700;
+  cursor:pointer; font-size:0.9rem; transition:all 0.2s; display:none;
+}
+.nav-back:hover { background:rgba(0,180,216,0.2); border-color:var(--cyan); }
+.nav-back.show { display:block; }
+
+/* DIFFICULTY SELECTOR */
+.diff-grid { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; max-width:600px; margin-bottom:1rem; }
+.diff-btn {
+  padding:0.6rem 1.2rem; border:2px solid rgba(255,255,255,0.15);
+  border-radius:12px; background:rgba(255,255,255,0.05);
+  color:var(--gray); font-family:'Nunito',sans-serif; font-weight:700;
+  cursor:pointer; transition:all 0.2s; font-size:0.9rem;
+}
+.diff-btn.active { border-color:var(--cyan); color:var(--cyan); background:rgba(0,180,216,0.1); }
+
+/* MOBILE RESPONSIVE */
+@media (max-width:600px) {
+  .game-sidebar { display:none; }
+  #game { flex-direction:column; }
+  .game-top-bar {
+    display:flex !important; padding:0.5rem;
+    gap:8px; justify-content:space-around;
+    border-bottom:1px solid rgba(255,255,255,0.07);
+    background:rgba(255,255,255,0.03);
+    width:100%;
+  }
+  .piano-key.white { width:32px; height:90px; }
+  .piano-key.black { width:20px; height:56px; }
+}
+
+/* TOP BAR (mobile score row) */
+.game-top-bar { display:none; }
+.top-score-pill {
+  background:rgba(255,255,255,0.06); border-radius:10px;
+  padding:4px 12px; font-family:'Fredoka One',cursive; font-size:1rem;
+}
+
+/* DIFFICULTY SCREEN */
+#difficulty { background:var(--navy); }
+.diff-card {
+  background:rgba(255,255,255,0.04); border:2px solid rgba(255,255,255,0.1);
+  border-radius:20px; padding:1.5rem 2rem; cursor:pointer;
+  transition:all 0.25s; max-width:320px; width:90%;
+  text-align:center; margin:0.5rem;
+}
+.diff-card:hover { transform:translateY(-4px); border-color:var(--cyan); }
+.diff-card h3 { font-family:'Fredoka One',cursive; font-size:1.4rem; margin-bottom:0.5rem; }
+.diff-card p { font-size:0.85rem; color:var(--gray); }
+
+/* PROFILE */
+#profile { background:var(--navy); padding:2rem 1rem; overflow-y:auto; }
+.profile-card { max-width:500px; width:100%; }
+.profile-avatar-big {
+  width:90px; height:90px; border-radius:50%;
+  object-fit:contain; border:3px solid var(--cyan);
+  background:rgba(0,180,216,0.1);
+}
+.profile-name { font-family:'Fredoka One',cursive; font-size:1.8rem; color:var(--gold); margin-top:0.75rem; }
+.profile-stats { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; width:100%; margin-top:1.5rem; }
+.pstat { background:rgba(255,255,255,0.05); border-radius:14px; padding:1rem; text-align:center; }
+.pstat .pl { font-size:0.72rem; color:var(--gray); letter-spacing:1px; text-transform:uppercase; }
+.pstat .pv { font-family:'Fredoka One',cursive; font-size:1.6rem; color:var(--cyan); }
+
+/* TRANSITION OVERLAY */
+#trans-overlay {
+  position:fixed; top:0; left:0; width:100%; height:100%;
+  background:var(--navy); z-index:500;
+  opacity:0; pointer-events:none; transition:opacity 0.3s;
+}
+#trans-overlay.active { opacity:1; pointer-events:all; }
+
+/* CLEF LABEL */
+.clef-note-label {
+  text-anchor:middle;
+  font-family:'Fredoka One',cursive;
+  fill:rgba(255,255,255,0.6);
+}
+
+/* ALERT BOX */
+.alert-box {
+  position:fixed; top:20px; left:50%; transform:translateX(-50%);
+  background:rgba(20,20,60,0.95); border:1px solid var(--cyan);
+  border-radius:14px; padding:0.75rem 1.5rem; z-index:600;
+  font-weight:700; color:var(--white); font-size:0.95rem;
+  opacity:0; transition:opacity 0.3s;
+  pointer-events:none;
+}
+.alert-box.show { opacity:1; }
+</style>
+</head>
+<body>
+
+<canvas id="stars-canvas"></canvas>
+<div id="trans-overlay"></div>
+<div class="alert-box" id="alert-box"></div>
+
+<!-- NAV BACK BUTTON -->
+<button class="nav-back" id="nav-back" onclick="goBack()">← Volver</button>
+
+<!-- FEEDBACK OVERLAY -->
+<div class="feedback-overlay" id="feedback-overlay"></div>
+
+<!-- ===========================
+     SPLASH SCREEN
+============================ -->
+<div class="screen active" id="splash">
+  <div class="splash-note-icon">🎵</div>
+  <div class="splash-logo">NOTAVENTURAS</div>
+  <div class="splash-subtitle">KABERT STUDIO – LMKE</div>
+  <div class="splash-loading">
+    <div class="loader-bar"><div class="loader-fill"></div></div>
+    <span>Cargando...</span>
+  </div>
+</div>
+
+<!-- ===========================
+     AUTH SCREEN
+============================ -->
+<div class="screen" id="auth">
+  <div class="auth-card">
+    <div class="auth-title">🎵 Bienvenido</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">Iniciar sesión</button>
+      <button class="auth-tab" onclick="switchAuthTab('register')">Registrarse</button>
+    </div>
+    <div id="login-form">
+      <input class="auth-input" type="text" id="login-user" placeholder="Usuario o email">
+      <input class="auth-input" type="password" id="login-pass" placeholder="Contraseña">
+      <button class="btn-primary" onclick="doLogin()">Entrar</button>
+      <div class="auth-divider">— o —</div>
+      <button class="btn-ghost" onclick="doGuest()">🎮 Jugar como invitado</button>
+    </div>
+    <div id="register-form" style="display:none">
+      <input class="auth-input" type="text" id="reg-user" placeholder="Nombre de usuario">
+      <input class="auth-input" type="email" id="reg-email" placeholder="Email">
+      <input class="auth-input" type="password" id="reg-pass" placeholder="Contraseña (mín. 6 caracteres)">
+      <button class="btn-primary" onclick="doRegister()">Crear cuenta</button>
+      <div class="auth-divider">— o —</div>
+      <button class="btn-ghost" onclick="doGuest()">🎮 Jugar como invitado</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===========================
+     MAIN MENU
+============================ -->
+<div class="screen" id="menu">
+  <div class="menu-header">
+    <div class="menu-logo">🎵 NOTAVENTURAS</div>
+    <div class="menu-user" id="menu-user-label">Cargando...</div>
+    <div class="menu-star-count">⭐ <span id="menu-stars">0</span> estrellas</div>
+  </div>
+  <div class="menu-grid">
+    <button class="menu-btn" onclick="showScreen('modes')">
+      <span class="icon">🎮</span>
+      <span>Jugar</span>
+      <span class="label">Seleccionar modo</span>
+    </button>
+    <button class="menu-btn" onclick="showScreen('ranking')">
+      <span class="icon">🏆</span>
+      <span>Ranking</span>
+      <span class="label">Leaderboard global</span>
+    </button>
+    <button class="menu-btn" onclick="showScreen('customize')">
+      <span class="icon">🎨</span>
+      <span>Cabezas</span>
+      <span class="label">Personalizar nota</span>
+    </button>
+    <button class="menu-btn" onclick="showScreen('profile')">
+      <span class="icon">👤</span>
+      <span>Perfil</span>
+      <span class="label">Ver estadísticas</span>
+    </button>
+    <button class="menu-btn" onclick="showScreen('tutorial')">
+      <span class="icon">📖</span>
+      <span>Tutorial</span>
+      <span class="label">Aprender a leer</span>
+    </button>
+    <button class="menu-btn" onclick="showAlert('Sonido: ON 🎵',2000)">
+      <span class="icon">⚙️</span>
+      <span>Config</span>
+      <span class="label">Opciones</span>
+    </button>
+  </div>
+</div>
+
+<!-- ===========================
+     MODE SELECT
+============================ -->
+<div class="screen" id="modes">
+  <div class="modes-title">🎮 Modos de Juego</div>
+  <div class="modes-grid" id="modes-grid">
+    <!-- populated by JS -->
+  </div>
+</div>
+
+<!-- ===========================
+     DIFFICULTY SELECT
+============================ -->
+<div class="screen" id="difficulty">
+  <div class="modes-title">🎯 Dificultad</div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;">
+    <div class="diff-card" onclick="startGame('grupo1')" style="border-color:rgba(0,245,212,0.4);">
+      <h3 style="color:var(--green)">🌱 Notas Naturales</h3>
+      <p>DO RE MI FA SOL LA SI<br>Posiciones estándar del pentagrama.<br>Ideal para principiantes.</p>
+    </div>
+    <div class="diff-card" onclick="startGame('grupo2')" style="border-color:rgba(123,47,255,0.4);">
+      <h3 style="color:var(--purple)">🚀 Notas Agudas</h3>
+      <p>DO RE MI FA SOL LA SI<br>Ubicadas sobre la tercera línea.<br>Para jugadores avanzados.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===========================
+     GAME SCREEN
+============================ -->
+<div class="screen" id="game">
+  <!-- Mobile top bar -->
+  <div class="game-top-bar" id="game-top-bar">
+    <div class="top-score-pill">⭐ <span id="m-score">0</span></div>
+    <div class="top-score-pill">🔥 <span id="m-combo">0</span>x</div>
+    <div class="top-score-pill">❤️ <span id="m-lives">3</span></div>
+    <div class="top-score-pill">⏱ <span id="m-timer">30</span></div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="game-sidebar">
+    <div style="text-align:center;padding-top:0.5rem;">
+      <div style="font-family:'Fredoka One',cursive;font-size:1rem;color:var(--cyan);margin-bottom:0.5rem;" id="game-mode-label">Botones</div>
+      <div style="font-size:0.75rem;color:var(--gray);" id="game-diff-label">Notas naturales</div>
+    </div>
+    <div class="score-box">
+      <div class="slabel">PUNTAJE</div>
+      <div class="sval" id="score-disp">0</div>
+    </div>
+    <div class="score-box">
+      <div class="slabel">COMBO</div>
+      <div class="sval green" id="combo-disp">0x</div>
+    </div>
+    <div class="score-box">
+      <div class="slabel">PRECISIÓN</div>
+      <div class="sval cyan" id="acc-disp">100%</div>
+    </div>
+    <div class="timer-ring" id="timer-wrap">
+      <svg width="80" height="80" viewBox="0 0 80 80">
+        <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="5"/>
+        <circle id="timer-arc" cx="40" cy="40" r="34" fill="none" stroke="var(--cyan)" stroke-width="5"
+          stroke-dasharray="213.6" stroke-dashoffset="0" stroke-linecap="round"/>
+      </svg>
+      <div class="timer-num" id="timer-num">30</div>
+    </div>
+    <div>
+      <div class="slabel" style="text-align:center;font-size:0.72rem;color:var(--gray);margin-bottom:4px;">VIDAS</div>
+      <div class="lives" id="lives-disp">
+        <span class="life-heart">❤️</span>
+        <span class="life-heart">❤️</span>
+        <span class="life-heart">❤️</span>
+      </div>
+    </div>
+    <button class="btn-ghost" style="width:100%;font-size:0.8rem;" onclick="endGame()">Salir</button>
+  </div>
+
+  <!-- Main game area -->
+  <div class="game-main">
+    <div id="question-label" style="font-family:'Fredoka One',cursive;font-size:1.1rem;color:var(--gray);">
+      ¿Qué nota es esta?
+    </div>
+
+    <!-- PENTAGRAMA -->
+    <div class="staff-container" id="staff-container">
+      <div class="staff-wrap" id="staff-wrap">
+        <svg class="staff-svg" id="staff-svg" viewBox="0 0 500 180" xmlns="http://www.w3.org/2000/svg">
+          <!-- Lines will be drawn by JS -->
+        </svg>
+        <!-- Note head overlay -->
+        <div class="note-head-container" id="note-head" style="display:none;">
+          <img class="note-head-img" id="note-head-img" src="" alt="nota">
+          <div class="note-stem" id="note-stem"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ANSWER AREA (buttons or piano) -->
+    <div id="answer-area"></div>
+  </div>
+</div>
+
+<!-- ===========================
+     CUSTOMIZE
+============================ -->
+<div class="screen" id="customize">
+  <div class="customize-title">🎨 Elige tu Cabeza</div>
+  <p style="color:var(--gray);margin-bottom:1.5rem;font-size:0.9rem;">Esta será la cabeza de tus notas musicales</p>
+  <div class="heads-grid" id="heads-grid"></div>
+  <button class="btn-primary" style="max-width:200px;margin-top:1.5rem;" onclick="saveHead()">✅ Guardar</button>
+</div>
+
+<!-- ===========================
+     RANKING
+============================ -->
+<div class="screen" id="ranking">
+  <div class="ranking-title">🏆 Leaderboard</div>
+  <div class="rank-tabs" id="rank-tabs">
+    <button class="rank-tab active" onclick="switchRankTab('global',this)">Global</button>
+    <button class="rank-tab" onclick="switchRankTab('weekly',this)">Semanal</button>
+    <button class="rank-tab" onclick="switchRankTab('monthly',this)">Mensual</button>
+  </div>
+  <div class="rank-list" id="rank-list"></div>
+</div>
+
+<!-- ===========================
+     TUTORIAL
+============================ -->
+<div class="screen" id="tutorial">
+  <div class="tutorial-title">📖 Cómo Leer el Pentagrama</div>
+  <div style="max-width:640px;width:100%;">
+    <div class="tutorial-card">
+      <h3>🎵 Las Líneas del Pentagrama</h3>
+      <p>El pentagrama tiene 5 líneas horizontales. Las notas se colocan <em>en</em> las líneas o <em>entre</em> ellas (en los espacios). La línea más baja es la primera, la más alta es la quinta.</p>
+    </div>
+    <div class="tutorial-card">
+      <h3>🔑 Clave de Sol</h3>
+      <p>El juego usa clave de sol. La nota SOL de la primera octava se ubica en la segunda línea (contando desde abajo). A partir de ahí puedes ubicar todas las demás notas.</p>
+    </div>
+    <div class="tutorial-card">
+      <h3>📋 Las Notas en Clave de Sol</h3>
+      <p>
+        Línea 1 (abajo): <strong>MI</strong><br>
+        Espacio 1: <strong>FA</strong><br>
+        Línea 2: <strong>SOL</strong><br>
+        Espacio 2: <strong>LA</strong><br>
+        Línea 3: <strong>SI</strong><br>
+        Espacio 3: <strong>DO</strong><br>
+        Línea 4: <strong>RE</strong><br>
+        Espacio 4: <strong>MI</strong><br>
+        Línea 5 (arriba): <strong>FA</strong>
+      </p>
+    </div>
+    <div class="tutorial-card">
+      <h3>💡 Truco para recordar</h3>
+      <p>Para las líneas de abajo a arriba: <strong>MI-FA-SOL-LA-SI</strong> → "Mi Familia Son Los Animales" o "Miro Fijamente Sus Labios Ardientes" para las notas en las líneas.</p>
+    </div>
+    <svg viewBox="0 0 500 120" style="width:100%;background:rgba(255,255,255,0.03);border-radius:12px;margin-top:0.5rem;margin-bottom:1rem;" id="tutorial-staff"></svg>
+  </div>
+</div>
+
+<!-- ===========================
+     PROFILE
+============================ -->
+<div class="screen" id="profile">
+  <div class="profile-card" style="display:flex;flex-direction:column;align-items:center;">
+    <img class="profile-avatar-big" id="profile-avatar" src="" alt="avatar">
+    <div class="profile-name" id="profile-name">Usuario</div>
+    <div style="color:var(--gray);font-size:0.85rem;" id="profile-type">Jugador</div>
+    <div class="profile-stats">
+      <div class="pstat"><div class="pl">PUNTAJE MÁX</div><div class="pv" id="p-maxscore">0</div></div>
+      <div class="pstat"><div class="pl">ESTRELLAS</div><div class="pv" id="p-stars">0 ⭐</div></div>
+      <div class="pstat"><div class="pl">PRECISIÓN</div><div class="pv" id="p-acc">0%</div></div>
+      <div class="pstat"><div class="pl">PARTIDAS</div><div class="pv" id="p-games">0</div></div>
+    </div>
+    <button class="btn-ghost" style="max-width:200px;margin-top:1.5rem;" onclick="logout()">Cerrar sesión</button>
+  </div>
+</div>
+
+<!-- ===========================
+     RESULT SCREEN
+============================ -->
+<div class="screen" id="result">
+  <div class="result-title" id="result-title">¡Excelente!</div>
+  <div class="result-stars" id="result-stars"></div>
+  <div class="result-stats">
+    <div class="result-stat">
+      <div class="rlabel">PUNTAJE</div>
+      <div class="rval" id="r-score">0</div>
+    </div>
+    <div class="result-stat">
+      <div class="rlabel">PRECISIÓN</div>
+      <div class="rval" id="r-acc">0%</div>
+    </div>
+    <div class="result-stat">
+      <div class="rlabel">COMBO MÁX</div>
+      <div class="rval" id="r-combo">0x</div>
+    </div>
+  </div>
+  <div class="result-btns">
+    <button class="btn-result replay" onclick="replayGame()">🔄 Jugar de nuevo</button>
+    <button class="btn-result menu" onclick="showScreen('menu')">🏠 Menú</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  NOTAVENTURAS GAME — ENGINE
+//  KABERT STUDIO – LMKE
+// ============================================================
+
+// ---------- STATE ----------
+const STATE = {
+  user: null,        // { name, email, isGuest }
+  profile: {},       // persistent data
+  selectedHead: 'nota',
+  currentMode: 'buttons',
+  currentDiff: 'grupo1',
+  // Game session
+  score: 0, combo: 0, maxCombo: 0,
+  lives: 3, timer: 30,
+  correct: 0, total: 0,
+  currentNote: null,
+  gameActive: false,
+  timerInterval: null,
+  stars: 0,
+};
+
+// Screen history
+let screenStack = ['splash'];
+
+// ---------- NOTE DEFINITIONS ----------
+// Clave de Sol positions (grupo1 = naturales, grupo2 = agudas)
+// Each note: { name, line, isLine }
+// line 1 = bottom line, 0 = below staff (ledger), etc.
+// staffY = pixel from top of SVG (180px tall, 5 lines from y=20 to y=140, spacing=30)
+
+const STAFF_H = 180;
+const LINE_Y = [140, 110, 80, 50, 20]; // lines 1-5 from bottom
+const SPACE_Y = [125, 95, 65, 35];      // spaces 1-4 from bottom
+
+function noteY(pos) {
+  // pos: 0=below L1 ledger, 1=L1, 1.5=Sp1, 2=L2, 2.5=Sp2, 3=L3, 3.5=Sp3, 4=L4, 4.5=Sp4, 5=L5
+  const base = LINE_Y[0]; // 140
+  const step = 15; // half-step spacing
+  return base - (pos - 1) * step;
+}
+
+const NOTES_GRUPO1 = [
+  { name: 'MI', pos: 1,   hint: 'Línea 1' },
+  { name: 'FA', pos: 1.5, hint: 'Espacio 1' },
+  { name: 'SOL',pos: 2,   hint: 'Línea 2' },
+  { name: 'LA', pos: 2.5, hint: 'Espacio 2' },
+  { name: 'SI', pos: 3,   hint: 'Línea 3' },
+  { name: 'DO', pos: 3.5, hint: 'Espacio 3' },
+  { name: 'RE', pos: 4,   hint: 'Línea 4' },
+];
+const NOTES_GRUPO2 = [
+  { name: 'MI', pos: 4.5, hint: 'Espacio 4' },
+  { name: 'FA', pos: 5,   hint: 'Línea 5' },
+  { name: 'SOL',pos: 5.5, hint: 'Sobre L5' },
+  { name: 'LA', pos: 6,   hint: 'Línea sup.' },
+  { name: 'SI', pos: 6.5, hint: 'Espacio sup.' },
+  { name: 'DO', pos: 7,   hint: 'Línea sup.' },
+  { name: 'RE', pos: 7.5, hint: 'Espacio sup.' },
+];
+
+const HEAD_NAMES = ['cerebro','dona','emoji1','emoji2','galleta','nota','ovni','pelota','pizza','planeta','reloj','sol'];
+const HEAD_EMOJIS = { cerebro:'🧠',dona:'🍩',emoji1:'😀',emoji2:'😎',galleta:'🍪',nota:'🎵',ovni:'🛸',pelota:'⚽',pizza:'🍕',planeta:'🪐',reloj:'⏰',sol:'☀️' };
+// Use emoji fallback (since GitHub image paths depend on repo structure)
+function getHeadEmoji(name) { return HEAD_EMOJIS[name] || '🎵'; }
+
+// ---------- MOCK FIREBASE (localStorage) ----------
+const DB = {
+  save(key, val) { try { localStorage.setItem('nv_'+key, JSON.stringify(val)); } catch(e){} },
+  load(key, def) { try { const v=localStorage.getItem('nv_'+key); return v?JSON.parse(v):def; } catch(e){return def;} },
+};
+
+function loadProfile(username) {
+  return DB.load('profile_'+username, {
+    maxScore:0, stars:0, accuracy:0, games:0, head:'nota', combo:0
+  });
+}
+function saveProfile() {
+  if(STATE.user && !STATE.user.isGuest) {
+    DB.save('profile_'+STATE.user.name, STATE.profile);
+  }
+}
+
+// ---------- STARS ANIMATION ----------
+(function initStars() {
+  const canvas = document.getElementById('stars-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, stars=[];
+  function resize() {
+    W=canvas.width=window.innerWidth;
+    H=canvas.height=window.innerHeight;
+  }
+  function makeStars() {
+    stars=[];
+    for(let i=0;i<150;i++){
+      stars.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.5+0.3,a:Math.random(),da:Math.random()*0.005+0.001,dx:Math.random()*0.1-0.05,dy:Math.random()*0.1-0.05});
+    }
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    stars.forEach(s=>{
+      s.a+=s.da; if(s.a>1||s.a<0)s.da*=-1;
+      s.x+=s.dx; s.y+=s.dy;
+      if(s.x<0)s.x=W; if(s.x>W)s.x=0;
+      if(s.y<0)s.y=H; if(s.y>H)s.y=0;
+      ctx.beginPath();
+      ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(180,200,255,${s.a*0.8})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize',()=>{resize();makeStars();});
+  resize(); makeStars(); draw();
+})();
+
+// ---------- SCREEN NAV ----------
+function showScreen(id, addToStack=true) {
+  const overlay = document.getElementById('trans-overlay');
+  overlay.classList.add('active');
+  setTimeout(()=>{
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    overlay.classList.remove('active');
+    // Update nav-back
+    const navBack = document.getElementById('nav-back');
+    const noBack = ['splash','auth','menu','game'];
+    if(noBack.includes(id)) navBack.classList.remove('show');
+    else navBack.classList.add('show');
+    if(addToStack) screenStack.push(id);
+    // Screen-specific init
+    if(id==='customize') initCustomize();
+    if(id==='ranking') initRanking();
+    if(id==='modes') initModes();
+    if(id==='tutorial') drawTutorialStaff();
+    if(id==='profile') initProfile();
+    if(id==='menu') initMenu();
+  }, 200);
+}
+
+function goBack() {
+  screenStack.pop();
+  const prev = screenStack[screenStack.length-1] || 'menu';
+  showScreen(prev, false);
+}
+
+// ---------- SPLASH ----------
+setTimeout(()=>{
+  const users = DB.load('users',{});
+  const lastUser = DB.load('lastUser',null);
+  if(lastUser && users[lastUser]) {
+    STATE.user = users[lastUser];
+    STATE.profile = loadProfile(STATE.user.name);
+    STATE.selectedHead = STATE.profile.head || 'nota';
+    showScreen('menu');
+  } else {
+    showScreen('auth');
+  }
+}, 2800);
+
+// ---------- AUTH ----------
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t,i)=>t.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='register')));
+  document.getElementById('login-form').style.display = tab==='login'?'block':'none';
+  document.getElementById('register-form').style.display = tab==='register'?'block':'none';
+}
+
+function doLogin() {
+  const u = document.getElementById('login-user').value.trim();
+  const p = document.getElementById('login-pass').value;
+  if(!u||!p) return showAlert('Por favor completa todos los campos');
+  const users = DB.load('users',{});
+  const found = Object.values(users).find(x=>x.name===u||x.email===u);
+  if(!found||found.pass!==btoa(p)) return showAlert('Usuario o contraseña incorrectos');
+  STATE.user = found;
+  STATE.profile = loadProfile(found.name);
+  STATE.selectedHead = STATE.profile.head||'nota';
+  DB.save('lastUser', found.name);
+  showScreen('menu');
+}
+
+function doRegister() {
+  const name = document.getElementById('reg-user').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const pass = document.getElementById('reg-pass').value;
+  if(!name||!email||!pass) return showAlert('Por favor completa todos los campos');
+  if(pass.length<6) return showAlert('La contraseña debe tener mínimo 6 caracteres');
+  const users = DB.load('users',{});
+  if(users[name]) return showAlert('Ese nombre de usuario ya existe');
+  const u = {name,email,pass:btoa(pass),isGuest:false};
+  users[name]=u;
+  DB.save('users',users);
+  DB.save('lastUser',name);
+  STATE.user=u;
+  STATE.profile=loadProfile(name);
+  STATE.selectedHead='nota';
+  showScreen('menu');
+}
+
+function doGuest() {
+  STATE.user = {name:'Invitado', isGuest:true};
+  STATE.profile = {maxScore:0,stars:0,accuracy:0,games:0,head:'nota',combo:0};
+  STATE.selectedHead='nota';
+  showScreen('menu');
+}
+
+function logout() {
+  DB.save('lastUser',null);
+  STATE.user=null; STATE.profile={};
+  showScreen('auth');
+}
+
+// ---------- MENU ----------
+function initMenu() {
+  const lbl = document.getElementById('menu-user-label');
+  lbl.textContent = STATE.user ? (STATE.user.isGuest ? '🎮 Jugando como Invitado' : `👤 ${STATE.user.name}`) : '';
+  document.getElementById('menu-stars').textContent = STATE.profile.stars||0;
+}
+
+// ---------- MODES ----------
+const GAME_MODES = [
+  {id:'buttons',icon:'🎹',name:'Botones Musicales',desc:'Identifica la nota con 7 botones DO–SI',badge:''},
+  {id:'piano',icon:'🎸',name:'Modo Piano',desc:'Usa el teclado visual para responder',badge:''},
+  {id:'adventure',icon:'⚔️',name:'Aventura',desc:'Niveles progresivos con historia',badge:'NUEVO'},
+  {id:'timer',icon:'⏱',name:'Contrarreloj',desc:'¡El tiempo corre! Máxima velocidad',badge:'RÁPIDO'},
+  {id:'challenge',icon:'🔥',name:'Desafío',desc:'Alta dificultad. Solo para expertos.',badge:'DIFÍCIL'},
+  {id:'free',icon:'🌿',name:'Modo Libre',desc:'Explora sin penalizaciones',badge:''},
+];
+
+function initModes() {
+  const g = document.getElementById('modes-grid');
+  g.innerHTML = GAME_MODES.map(m=>`
+    <div class="mode-card" onclick="selectMode('${m.id}')">
+      ${m.badge?`<div class="mode-badge">${m.badge}</div>`:''}
+      <span class="mode-icon">${m.icon}</span>
+      <h3>${m.name}</h3>
+      <p>${m.desc}</p>
+    </div>
+  `).join('');
+}
+
+function selectMode(id) {
+  STATE.currentMode = id;
+  showScreen('difficulty');
+}
+
+// ---------- GAME INIT ----------
+function startGame(diff) {
+  STATE.currentDiff = diff;
+  STATE.score = 0; STATE.combo = 0; STATE.maxCombo = 0;
+  STATE.lives = 3; STATE.timer = 30;
+  STATE.correct = 0; STATE.total = 0;
+  STATE.gameActive = true;
+  updateSidebar();
+  showScreen('game');
+  setTimeout(()=>{
+    buildStaff();
+    buildAnswerArea();
+    updateSidebar();
+    nextNote();
+    startTimer();
+  },100);
+}
+
+function replayGame() { startGame(STATE.currentDiff); }
+
+// ---------- BUILD STAFF SVG ----------
+function buildStaff() {
+  const svg = document.getElementById('staff-svg');
+  // Draw 5 lines
+  let lines='';
+  LINE_Y.forEach((y,i)=>{
+    lines+=`<line x1="60" y1="${y}" x2="440" y2="${y}" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/>`;
+  });
+  // Treble clef (simple representation)
+  lines+=`<text x="18" y="105" font-size="90" fill="rgba(255,255,255,0.85)" font-family="serif">𝄞</text>`;
+  // Time signature 4/4
+  lines+=`<text x="68" y="90" font-size="22" fill="rgba(255,255,255,0.6)" font-family="serif">4</text>`;
+  lines+=`<text x="68" y="118" font-size="22" fill="rgba(255,255,255,0.6)" font-family="serif">4</text>`;
+  svg.innerHTML = lines;
+}
+
+// ---------- BUILD ANSWER AREA ----------
+function buildAnswerArea() {
+  const area = document.getElementById('answer-area');
+  const mode = STATE.currentMode;
+  if(mode==='piano') {
+    buildPiano(area);
+  } else {
+    // Buttons mode (and adventure, timer, challenge, free)
+    const notes = ['DO','RE','MI','FA','SOL','LA','SI'];
+    area.innerHTML = `<div class="answer-grid">
+      ${notes.map(n=>`<button class="note-btn" id="btn-${n}" onclick="answerNote('${n}')">${n}</button>`).join('')}
+    </div>`;
+  }
+}
+
+function buildPiano(area) {
+  // C major octave: C D E F G A B C
+  const keys = [
+    {note:'DO',type:'white',label:'DO'},
+    {note:'RE',type:'white',label:'RE'},
+    {note:'MI',type:'white',label:'MI'},
+    {note:'FA',type:'white',label:'FA'},
+    {note:'SOL',type:'white',label:'SOL'},
+    {note:'LA',type:'white',label:'LA'},
+    {note:'SI',type:'white',label:'SI'},
+  ];
+  area.innerHTML = `<div class="piano-wrap">
+    ${keys.map(k=>`<div class="piano-key white" id="pk-${k.note}" onclick="answerNote('${k.note}')">${k.label}</div>`).join('')}
+  </div>`;
+}
+
+// ---------- NOTE LOGIC ----------
+function getNotesPool() {
+  return STATE.currentDiff==='grupo1' ? NOTES_GRUPO1 : NOTES_GRUPO2;
+}
+
+function nextNote() {
+  if(!STATE.gameActive) return;
+  const pool = getNotesPool();
+  STATE.currentNote = pool[Math.floor(Math.random()*pool.length)];
+  displayNote(STATE.currentNote);
+  enableButtons(true);
+}
+
+function displayNote(note) {
+  const wrap = document.getElementById('staff-wrap');
+  const container = document.getElementById('note-head');
+  const img = document.getElementById('note-head-img');
+
+  // Calculate position
+  const svgEl = document.getElementById('staff-svg');
+  const svgRect = svgEl.getBoundingClientRect();
+  const wrapRect = wrap.getBoundingClientRect();
+
+  const svgW = 500; const svgH = 180;
+  const rendW = svgRect.width; const rendH = svgRect.height;
+  const scaleX = rendW/svgW; const scaleY = rendH/svgH;
+
+  const noteXsvg = 260; // center of staff
+  const noteYsvg = noteY(note.pos);
+
+  const pixX = noteXsvg * scaleX;
+  const pixY = noteYsvg * scaleY;
+
+  // Position relative to wrap
+  const relX = (svgRect.left - wrapRect.left) + pixX;
+  const relY = (svgRect.top - wrapRect.top) + pixY;
+
+  // Note head size: 40x40px, centered
+  container.style.left = (relX - 20) + 'px';
+  container.style.top = (relY - 20) + 'px';
+  container.style.display = 'flex';
+
+  // Use emoji as head
+  img.style.display='none';
+  // Try image first
+  const imgSrc = `https://raw.githubusercontent.com/kabertstudio/notaventuras-game/main/cabezas/${STATE.selectedHead}.png`;
+  img.onload=()=>{img.style.display='block';}
+  img.onerror=()=>{
+    img.style.display='none';
+    container.innerHTML=`<span style="font-size:2rem;animation:noteFloat 1.5s ease-in-out infinite;">${getHeadEmoji(STATE.selectedHead)}</span>`;
+  }
+  img.src=imgSrc;
+
+  // Draw ledger lines if needed
+  addLedgerLines(note.pos);
+}
+
+function addLedgerLines(pos) {
+  const svg = document.getElementById('staff-svg');
+  // Remove existing ledger lines
+  svg.querySelectorAll('.ledger').forEach(e=>e.remove());
+  // Add ledger lines above 5 or below 1
+  const NX = 250; const LW = 30;
+  if(pos>5){
+    const levs = [];
+    for(let p=5.5;p<=pos;p+=1){
+      if(Math.round(p*2)%2===0) levs.push(p);
+    }
+    levs.forEach(p=>{
+      const y2 = noteY(p);
+      const l = document.createElementNS('http://www.w3.org/2000/svg','line');
+      l.setAttribute('x1',NX-LW); l.setAttribute('x2',NX+LW);
+      l.setAttribute('y1',y2); l.setAttribute('y2',y2);
+      l.setAttribute('stroke','rgba(255,255,255,0.7)'); l.setAttribute('stroke-width','1.5');
+      l.classList.add('ledger');
+      svg.appendChild(l);
+    });
+  }
+  if(pos<1){
+    const y2=noteY(pos);
+    const l=document.createElementNS('http://www.w3.org/2000/svg','line');
+    l.setAttribute('x1',NX-LW); l.setAttribute('x2',NX+LW);
+    l.setAttribute('y1',y2); l.setAttribute('y2',y2);
+    l.setAttribute('stroke','rgba(255,255,255,0.7)'); l.setAttribute('stroke-width','1.5');
+    l.classList.add('ledger');
+    svg.appendChild(l);
+  }
+}
+
+function answerNote(ans) {
+  if(!STATE.gameActive || !STATE.currentNote) return;
+  enableButtons(false);
+  STATE.total++;
+  const correct = ans === STATE.currentNote.name;
+
+  if(correct) {
+    STATE.correct++;
+    STATE.combo++;
+    STATE.maxCombo = Math.max(STATE.maxCombo, STATE.combo);
+    const bonus = STATE.combo>=5?50:STATE.combo>=3?20:0;
+    STATE.score += 100 + bonus;
+    showFeedback(STATE.combo>=3 ? (STATE.combo>=5?'🔥 COMBO x'+STATE.combo:'¡CORRECTO!') : '¡Bien!', 'correct');
+    spawnParticles(true);
+    highlightBtn(ans, 'correct');
+  } else {
+    STATE.combo=0;
+    STATE.lives--;
+    showFeedback('✗ Era '+STATE.currentNote.name, 'wrong');
+    spawnParticles(false);
+    highlightBtn(ans,'wrong');
+    highlightBtn(STATE.currentNote.name,'correct');
+    updateLives();
+    if(STATE.lives<=0){
+      setTimeout(()=>endGame(),800);
+      return;
+    }
+  }
+
+  updateSidebar();
+  setTimeout(()=>{
+    clearButtonHighlights();
+    if(STATE.gameActive) nextNote();
+  }, 700);
+}
+
+function highlightBtn(note, cls) {
+  const btn = document.getElementById('btn-'+note) || document.getElementById('pk-'+note);
+  if(btn) { btn.classList.add(cls); }
+}
+function clearButtonHighlights() {
+  document.querySelectorAll('.note-btn,.piano-key').forEach(b=>b.classList.remove('correct','wrong','correct-key','wrong-key'));
+}
+function enableButtons(on) {
+  document.querySelectorAll('.note-btn,.piano-key').forEach(b=>b.style.pointerEvents=on?'all':'none');
+}
+
+// ---------- TIMER ----------
+function startTimer() {
+  const mode = STATE.currentMode;
+  const hasTimer = ['timer','challenge','adventure'].includes(mode);
+  document.getElementById('timer-wrap').style.opacity = hasTimer?'1':'0.3';
+  if(!hasTimer){ STATE.timer=999; return; }
+  STATE.timer = mode==='challenge'?20:30;
+  clearInterval(STATE.timerInterval);
+  STATE.timerInterval = setInterval(()=>{
+    if(!STATE.gameActive){clearInterval(STATE.timerInterval);return;}
+    STATE.timer--;
+    updateTimerDisplay();
+    if(STATE.timer<=0){ clearInterval(STATE.timerInterval); endGame(); }
+  },1000);
+}
+
+function updateTimerDisplay() {
+  document.getElementById('timer-num').textContent = STATE.timer;
+  document.getElementById('m-timer').textContent = STATE.timer;
+  const arc = document.getElementById('timer-arc');
+  const maxTime = STATE.currentMode==='challenge'?20:30;
+  const pct = STATE.timer/maxTime;
+  const circ = 213.6;
+  arc.style.strokeDashoffset = circ*(1-pct);
+  arc.style.stroke = STATE.timer<=10?'var(--red)':'var(--cyan)';
+}
+
+// ---------- SIDEBAR UPDATE ----------
+function updateSidebar() {
+  const acc = STATE.total===0?100:Math.round(STATE.correct/STATE.total*100);
+  document.getElementById('score-disp').textContent = STATE.score;
+  document.getElementById('combo-disp').textContent = STATE.combo+'x';
+  document.getElementById('acc-disp').textContent = acc+'%';
+  document.getElementById('m-score').textContent = STATE.score;
+  document.getElementById('m-combo').textContent = STATE.combo;
+  document.getElementById('m-lives').textContent = STATE.lives;
+  document.getElementById('game-mode-label').textContent = GAME_MODES.find(m=>m.id===STATE.currentMode)?.name||'Juego';
+  document.getElementById('game-diff-label').textContent = STATE.currentDiff==='grupo1'?'Notas naturales':'Notas agudas';
+}
+
+function updateLives() {
+  const hearts = document.querySelectorAll('.life-heart');
+  hearts.forEach((h,i)=>h.classList.toggle('lost', i>=STATE.lives));
+  document.getElementById('m-lives').textContent = STATE.lives;
+}
+
+// ---------- END GAME ----------
+function endGame() {
+  STATE.gameActive = false;
+  clearInterval(STATE.timerInterval);
+  const acc = STATE.total===0?0:Math.round(STATE.correct/STATE.total*100);
+  const starsEarned = acc>=90?3:acc>=70?2:acc>=50?1:0;
+  STATE.stars = starsEarned;
+  // Save profile
+  if(!STATE.user?.isGuest) {
+    STATE.profile.maxScore = Math.max(STATE.profile.maxScore||0, STATE.score);
+    STATE.profile.stars = (STATE.profile.stars||0) + starsEarned;
+    STATE.profile.accuracy = Math.round(((STATE.profile.accuracy||0)*((STATE.profile.games||0)) + acc)/((STATE.profile.games||0)+1));
+    STATE.profile.games = (STATE.profile.games||0)+1;
+    STATE.profile.head = STATE.selectedHead;
+    // Update ranking
+    addToRanking(STATE.user.name, STATE.score, STATE.selectedHead);
+    saveProfile();
+  }
+  // Show result
+  document.getElementById('result-title').textContent = starsEarned>=2?'¡Excelente! 🎉':'¡Buen intento!';
+  document.getElementById('result-title').className = 'result-title '+(starsEarned>=2?'win':'');
+  const starsEl = document.getElementById('result-stars');
+  starsEl.innerHTML = [1,2,3].map((i,idx)=>`<span class="result-star ${i<=starsEarned?'lit':'dim'}" style="animation-delay:${idx*0.15}s">⭐</span>`).join('');
+  document.getElementById('r-score').textContent = STATE.score;
+  document.getElementById('r-acc').textContent = acc+'%';
+  document.getElementById('r-combo').textContent = STATE.maxCombo+'x';
+  showScreen('result');
+}
+
+// ---------- RANKING ----------
+function addToRanking(name, score, head) {
+  const r = DB.load('rankings', []);
+  const existing = r.findIndex(x=>x.name===name);
+  const now = Date.now();
+  if(existing>=0) { if(score>r[existing].score) r[existing]={name,score,head,ts:now}; }
+  else r.push({name,score,head,ts:now});
+  r.sort((a,b)=>b.score-a.score);
+  DB.save('rankings', r.slice(0,50));
+}
+
+function initRanking() {
+  const r = DB.load('rankings', []);
+  // If empty add demo entries
+  if(r.length===0) {
+    const demo=[
+      {name:'MaestroMusical',score:8500,head:'sol',ts:Date.now()},
+      {name:'NotaRápida',score:7200,head:'estrella',ts:Date.now()},
+      {name:'MelodíaX',score:6300,head:'pizza',ts:Date.now()},
+      {name:'ArmoníaZ',score:5100,head:'ovni',ts:Date.now()},
+      {name:'ClaveSOL',score:3800,head:'cerebro',ts:Date.now()},
+    ];
+    DB.save('rankings',demo);
+    renderRanking(demo);
+  } else {
+    renderRanking(r);
+  }
+}
+
+function renderRanking(data) {
+  const list = document.getElementById('rank-list');
+  const medals=['🥇','🥈','🥉'];
+  const posClass=['gold','silver','bronze'];
+  list.innerHTML = data.slice(0,10).map((r,i)=>`
+    <div class="rank-item">
+      <div class="rank-pos ${posClass[i]||''}">${medals[i]||i+1}</div>
+      <div style="font-size:1.5rem">${getHeadEmoji(r.head||'nota')}</div>
+      <div class="rank-name">${r.name}</div>
+      <div class="rank-score">${r.score.toLocaleString()}</div>
+    </div>
+  `).join('');
+}
+
+function switchRankTab(tab, el) {
+  document.querySelectorAll('.rank-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  const r = DB.load('rankings',[]);
+  const now = Date.now();
+  let filtered = r;
+  if(tab==='weekly') filtered = r.filter(x=>(now-x.ts)<7*86400000);
+  if(tab==='monthly') filtered = r.filter(x=>(now-x.ts)<30*86400000);
+  renderRanking(filtered.length?filtered:r);
+}
+
+// ---------- CUSTOMIZE ----------
+function initCustomize() {
+  const grid = document.getElementById('heads-grid');
+  grid.innerHTML = HEAD_NAMES.map(h=>`
+    <div class="head-card ${STATE.selectedHead===h?'selected':''}" id="hcard-${h}" onclick="selectHead('${h}')">
+      <div style="font-size:2.5rem">${getHeadEmoji(h)}</div>
+      <p>${h}</p>
+    </div>
+  `).join('');
+}
+
+function selectHead(name) {
+  STATE.selectedHead = name;
+  document.querySelectorAll('.head-card').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('hcard-'+name)?.classList.add('selected');
+}
+
+function saveHead() {
+  STATE.profile.head = STATE.selectedHead;
+  saveProfile();
+  showAlert('✅ Cabeza guardada: '+getHeadEmoji(STATE.selectedHead)+' '+STATE.selectedHead);
+}
+
+// ---------- PROFILE ----------
+function initProfile() {
+  const p = STATE.profile;
+  const u = STATE.user;
+  const headEmoji = getHeadEmoji(STATE.selectedHead);
+  document.getElementById('profile-avatar').style.display='none';
+  // Use emoji avatar fallback
+  const avatarEl = document.getElementById('profile-avatar');
+  avatarEl.parentElement.insertAdjacentHTML('afterbegin',`<div style="font-size:4rem;margin-bottom:0.25rem" id="profile-emoji-av">${headEmoji}</div>`);
+  document.getElementById('profile-name').textContent = u?.name||'Invitado';
+  document.getElementById('profile-type').textContent = u?.isGuest?'👤 Modo Invitado':'🎓 Jugador registrado';
+  document.getElementById('p-maxscore').textContent = (p.maxScore||0).toLocaleString();
+  document.getElementById('p-stars').textContent = (p.stars||0)+' ⭐';
+  document.getElementById('p-acc').textContent = (p.accuracy||0)+'%';
+  document.getElementById('p-games').textContent = p.games||0;
+}
+
+// ---------- TUTORIAL STAFF ----------
+function drawTutorialStaff() {
+  const svg = document.getElementById('tutorial-staff');
+  const linesY = [100,80,60,40,20];
+  let c = '';
+  // Lines
+  linesY.forEach(y=>{ c+=`<line x1="40" y1="${y}" x2="480" y2="${y}" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/>`; });
+  // Clef
+  c+=`<text x="8" y="78" font-size="65" fill="rgba(255,255,255,0.8)" font-family="serif">𝄞</text>`;
+  // Note labels on lines
+  const noteLabels = [
+    {name:'MI',y:100},{name:'FA',y:90},{name:'SOL',y:80},{name:'LA',y:70},
+    {name:'SI',y:60},{name:'DO',y:50},{name:'RE',y:40},{name:'MI',y:30},{name:'FA',y:20}
+  ];
+  noteLabels.forEach((n,i)=>{
+    const x = 80+i*44;
+    // note oval
+    c+=`<ellipse cx="${x}" cy="${n.y}" rx="10" ry="7" fill="rgba(255,214,10,0.9)" transform="rotate(-15,${x},${n.y})"/>`;
+    // label
+    c+=`<text x="${x}" y="${n.y+22}" text-anchor="middle" font-size="10" fill="rgba(0,180,216,0.9)" font-family="Fredoka One,cursive">${n.name}</text>`;
+  });
+  svg.innerHTML = c;
+}
+
+// ---------- FEEDBACK POPUP ----------
+function showFeedback(text, type) {
+  const ov = document.getElementById('feedback-overlay');
+  ov.innerHTML=`<div class="feedback-popup ${type}">${text}</div>`;
+  setTimeout(()=>ov.innerHTML='',900);
+}
+
+// ---------- PARTICLES ----------
+function spawnParticles(correct) {
+  const colors = correct ? ['#00f5d4','#ffd60a','#00b4d8'] : ['#ff4d6d','#ff6b6b','#ff0055'];
+  for(let i=0;i<12;i++) {
+    const p = document.createElement('div');
+    p.className='particle';
+    const size = 4+Math.random()*8;
+    const angle = Math.random()*Math.PI*2;
+    const dist = 60+Math.random()*80;
+    p.style.cssText=`
+      width:${size}px;height:${size}px;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      left:${window.innerWidth/2}px;top:${window.innerHeight*0.4}px;
+      --dx:${Math.cos(angle)*dist}px;
+      --dy:${Math.sin(angle)*dist}px;
+    `;
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(),900);
+  }
+}
+
+// ---------- ALERT ----------
+function showAlert(msg, duration=2500) {
+  const box = document.getElementById('alert-box');
+  box.textContent=msg; box.classList.add('show');
+  clearTimeout(box._t);
+  box._t=setTimeout(()=>box.classList.remove('show'),duration);
+}
+
+// ---------- INIT DONE ----------
+initModes();
+</script>
+</body>
+</html>
