@@ -120,55 +120,94 @@ class GameApp {
         await Promise.all(p);
     }
 
-    setupAuthUI() {
-        const toggleBtn = document.getElementById('auth-toggle-btn');
-        const userInput = document.getElementById('auth-username');
-        const primaryBtn = document.getElementById('auth-primary-btn');
+	setupAuthUI() {
+		const toggleBtn = document.getElementById('auth-toggle-btn');
+		const userInput = document.getElementById('auth-username');
+		const passwordInput = document.getElementById('auth-password');
+		const primaryBtn = document.getElementById('auth-primary-btn');
 
-        toggleBtn.addEventListener('click', () => {
-            this.isAuthRegister = !this.isAuthRegister;
-            document.getElementById('auth-title').innerText = this.isAuthRegister ? "CREAR CUENTA" : "INICIAR SESIÓN";
-            primaryBtn.innerText = this.isAuthRegister ? "Registrar" : "Entrar";
-            if (this.isAuthRegister) userInput.classList.remove('hidden');
-            else userInput.classList.add('hidden');
-        });
+		// Cambiar visualmente entre modo Login y modo Registro
+		toggleBtn.addEventListener('click', () => {
+			this.isAuthRegister = !this.isAuthRegister;
+			document.getElementById('auth-title').innerText = this.isAuthRegister ? "CREAR CUENTA" : "INICIAR SESIÓN";
+			primaryBtn.innerText = this.isAuthRegister ? "Registrar" : "Entrar";
+			toggleBtn.innerText = this.isAuthRegister ? "¿Ya tienes cuenta? Inicia Sesión" : "¿No tienes cuenta? Regístrate";
+		});
 
-        primaryBtn.addEventListener('click', async () => {
-            const email = document.getElementById('auth-email').value;
-            const password = document.getElementById('auth-password').value;
-            const username = userInput.value || "MúsicoAnónimo";
+		// Procesar el clic en el botón principal
+		primaryBtn.addEventListener('click', async () => {
+			const username = userInput.value.trim();
+			const password = passwordInput.value;
 
-            try {
-                if (this.isAuthRegister) {
-                    const cred = await createUserWithEmailAndPassword(auth, email, password);
-                    await setDoc(doc(db, "users", cred.user.uid), {
-                        uid: cred.user.uid, username: username, highScore: 0, selectedHead: 'nota'
-                    });
-                } else {
-                    await signInWithEmailAndPassword(auth, email, password);
-                }
-                document.getElementById('auth-layer').classList.add('hidden');
-                document.getElementById('menu-layer').classList.remove('hidden');
-            } catch (err) {
-                alert(`Error de autenticación: ${err.message}`);
-            }
-        });
+			if (!username || !password) {
+				alert("Por favor, completa todos los campos.");
+				return;
+			}
 
-        document.getElementById('auth-guest-btn').addEventListener('click', () => {
-            this.isGuest = true;
-            this.user = null;
-            document.getElementById('user-welcome').innerText = "Sesión: Modo Invitado (No guarda récord)";
-            document.getElementById('auth-layer').classList.add('hidden');
-            document.getElementById('menu-layer').classList.remove('hidden');
-        });
+			if (password.length < 6) {
+				alert("La contraseña debe tener al menos 6 caracteres.");
+				return;
+			}
 
-        document.getElementById('logout-btn').addEventListener('click', async () => {
-            await signOut(auth);
-            this.isGuest = false;
-            document.getElementById('menu-layer').classList.add('hidden');
-            document.getElementById('auth-layer').classList.remove('hidden');
-        });
-    }
+			// MÁGIA DETRÁS DE ESCENAS: Convertimos el usuario en un correo sintético válido para Firebase
+			// Reemplazamos espacios para evitar fallos de sintaxis en el engine de Firebase
+			const cleanUsername = username.replace(/\s+/g, '').toLowerCase();
+			const virtualEmail = `${cleanUsername}@notaventuras.internal`;
+
+			try {
+				if (this.isAuthRegister) {
+					// Registrar nueva cuenta en la nube
+					const cred = await createUserWithEmailAndPassword(auth, virtualEmail, password);
+					
+					// Guardar su perfil en la base de datos Firestore usando su nombre real/bonito
+					await setDoc(doc(db, "users", cred.user.uid), {
+						uid: cred.user.uid, 
+						username: username, // Aquí se guarda tal como lo escribió (ej: "Juan Pérez")
+						highScore: 0, 
+						selectedHead: 'nota'
+					});
+				} else {
+					// Iniciar sesión con la cuenta existente
+					await signInWithEmailAndPassword(auth, virtualEmail, password);
+				}
+				
+				// Limpiar campos de seguridad
+				userInput.value = "";
+				passwordInput.value = "";
+				
+				document.getElementById('auth-layer').classList.add('hidden');
+				document.getElementById('menu-layer').classList.remove('hidden');
+			} catch (err) {
+				// Traductor pedagógico de errores de Firebase
+				let friendlyMessage = "Ocurrió un problema inesperado.";
+				if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password" || err.code === "auth/user-not-found") {
+					friendlyMessage = "Usuario o contraseña incorrectos. Verifica los datos.";
+				} else if (err.code === "auth/email-already-in-use") {
+					friendlyMessage = "Ese nombre de usuario ya está registrado por otro estudiante.";
+				} else {
+					friendlyMessage = err.message;
+				}
+				alert(`Aviso: ${friendlyMessage}`);
+			}
+		});
+
+		// Botón para ingresar como invitado sin datos
+		document.getElementById('auth-guest-btn').addEventListener('click', () => {
+			this.isGuest = true;
+			this.user = null;
+			document.getElementById('user-welcome').innerText = "Sesión: Modo Invitado (No guarda récord)";
+			document.getElementById('auth-layer').classList.add('hidden');
+			document.getElementById('menu-layer').classList.remove('hidden');
+		});
+
+		// Botón de cerrar sesión
+		document.getElementById('logout-btn').addEventListener('click', async () => {
+			await signOut(auth);
+			this.isGuest = false;
+			document.getElementById('menu-layer').classList.add('hidden');
+			document.getElementById('auth-layer').classList.remove('hidden');
+		});
+	}
 
     setupMenuEvents() {
         document.querySelectorAll('.menu-btn[data-mode]').forEach(btn => {
