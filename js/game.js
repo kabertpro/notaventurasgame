@@ -7,13 +7,14 @@ import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, query, orderB
 
 // !!! REEMPLAZA ESTE CONFIG CON TUS PROPIAS CREDENCIALES DE LA CONSOLE !!!
 const firebaseConfig = {
-    apiKey: "AIzaSyAsYourKeyHere_Placeholder",
-    authDomain: "notaventuras-game.firebaseapp.com",
-    projectId: "notaventuras-game",
-    storageBucket: "notaventuras-game.appspot.com",
-    messagingSenderId: "1234567890",
-    appId: "1:12345:web:abcdef"
+  apiKey: "AIzaSyBA3an5J2xFkWZ5EzSui8SLtV5ee3VirRA",
+  authDomain: "notaventuras-game.firebaseapp.com",
+  projectId: "notaventuras-game",
+  storageBucket: "notaventuras-game.firebasestorage.app",
+  messagingSenderId: "80907541242",
+  appId: "1:80907541242:web:3d25c8325bece1a9a44743"
 };
+
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
