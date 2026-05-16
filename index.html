@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Notaventuras Game - KABERT STUDIO</title>
-    <!-- Tipografías Premium para Videojuegos -->
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/main.css">
 </head>
@@ -12,61 +11,84 @@
 
     <div id="app-viewport">
         
-        <!-- PANTALLA SPLASH DE INICIO (KABERT STUDIO) -->
+        <!-- PANTALLA SPLASH -->
         <div id="splash-layer" class="splash-container">
             <h1 class="splash-title">NOTAVENTURAS GAME</h1>
             <p class="splash-subtitle">KABERT STUDIO – LMKE</p>
             <div class="loading-bar"><div class="progress"></div></div>
         </div>
 
-        <!-- INTERFAZ DEL MENÚ PRINCIPAL -->
-        <div id="menu-layer" class="screen-overlay hidden">
+        <!-- CAPA DE AUTENTICACIÓN (FIREBASE UI) -->
+        <div id="auth-layer" class="screen-overlay hidden">
             <div class="menu-card">
-                <h2>NOTAVENTURAS GAME</h2>
-                <p style="color: #41E1FA; margin-bottom: 20px; font-size: 0.9rem;">SELECCIONA UN MODO DE JUEGO</p>
-                <div class="menu-grid">
-                    <button class="menu-btn" data-action="play-libre">Modo Libre (Práctica)</button>
-                    <button class="menu-btn" data-action="play-botones">Botones Musicales (Grupo 1)</button>
-                    <button class="menu-btn" data-action="play-piano">Teclado de Piano</button>
-                    <button class="menu-btn" data-action="play-contrarreloj">Contrarreloj (60s)</button>
-                    <button class="menu-btn" data-action="play-desafio">Desafío Extremo (Grupo 2)</button>
-                    <button class="menu-btn accent" data-action="open-custom">Personalizar Notahead</button>
+                <h2 id="auth-title">INICIAR SESIÓN</h2>
+                <div class="auth-form">
+                    <input type="text" id="auth-username" placeholder="Nombre de Usuario (Solo Registro)" class="auth-input hidden">
+                    <input type="email" id="auth-email" placeholder="Correo Electrónico" class="auth-input">
+                    <input type="password" id="auth-password" placeholder="Contraseña" class="auth-input">
+                    <button class="menu-btn" id="auth-primary-btn">Entrar</button>
+                    <button class="menu-btn toggle" id="auth-toggle-btn">¿No tienes cuenta? Regístrate</button>
+                    <hr style="border: 1px solid rgba(255,255,255,0.1); margin: 15px 0;">
+                    <button class="menu-btn guest" id="auth-guest-btn">Jugar como Invitado</button>
                 </div>
             </div>
         </div>
 
-        <!-- MODAL INTERACTIVO DE PERSONALIZACIÓN -->
-        <div id="custom-layer" class="screen-overlay hidden">
+        <!-- MENÚ PRINCIPAL -->
+        <div id="menu-layer" class="screen-overlay hidden">
             <div class="menu-card">
-                <h2>PANEL DE PERSONALIZACIÓN</h2>
-                <p style="color: #FFD700; margin-bottom: 15px;">Selecciona la cabeza de tus notas:</p>
-                <div class="head-selector-grid" id="heads-grid"></div>
-                <button class="menu-btn accent" id="close-custom-btn" style="margin-top: 20px; width: 100%;">Guardar y Regresar</button>
+                <h2>NOTAVENTURAS</h2>
+                <p id="user-welcome" style="color: #FFD700; margin-bottom: 20px;">Sesión: Invitado</p>
+                <div class="menu-grid">
+                    <button class="menu-btn" data-mode="normales">Notas Normales</button>
+                    <button class="menu-btn" data-mode="agudas">Notas Agudas</button>
+                    <button class="menu-btn" data-mode="mixtas">Notas Mixtas</button>
+                    <button class="menu-btn" id="open-ranking-btn">Ver Ranking Global</button>
+                    <button class="menu-btn accent" data-action="open-custom">Cambiar Avatar</button>
+                    <button class="menu-btn" id="logout-btn" style="background: #FF5555; border: none;">Salir</button>
+                </div>
             </div>
         </div>
 
-        <!-- PANEL SUPERIOR DE MÉTRICAS (HUD) -->
+        <!-- MODAL DE RANKING GLOBAL -->
+        <div id="ranking-layer" class="screen-overlay hidden">
+            <div class="menu-card">
+                <h2>RANKING GLOBAL</h2>
+                <div id="leaderboard-container">Cargando clasificaciones oficiales...</div>
+                <button class="menu-btn accent" id="close-ranking-btn" style="margin-top: 15px; width: 100%;">Cerrar Ranking</button>
+            </div>
+        </div>
+
+        <!-- MODAL DE PERSONALIZACIÓN -->
+        <div id="custom-layer" class="screen-overlay hidden">
+            <div class="menu-card">
+                <h2>AVATARES DISPONIBLES</h2>
+                <div class="head-selector-grid" id="heads-grid"></div>
+                <button class="menu-btn accent" id="close-custom-btn" style="margin-top: 20px; width: 100%;">Confirmar Selección</button>
+            </div>
+        </div>
+
+        <!-- HUD SUPERIOR -->
         <header id="game-hud">
-            <div class="hud-item">MODO: <span id="hud-mode">-</span></div>
+            <div class="hud-item">NIVEL: <span id="hud-level">1</span></div>
+            <div class="hud-item">NOTA: <span id="hud-note-count">1/20</span></div>
             <div class="hud-item">PUNTOS: <span id="hud-score">0</span></div>
-            <div class="hud-item">RHA (COMBO): <span id="hud-combo">0</span> / Max: <span id="hud-streak">0</span></div>
+            <div class="hud-item">RHA (COMBO): <span id="hud-combo">0</span></div>
             <div class="hud-item">PRECISIÓN: <span id="hud-accuracy">100</span>%</div>
-            <button id="menu-back-btn" class="hud-back hidden">Menú</button>
+            <button id="menu-back-btn" class="hud-back hidden">Abandonar</button>
         </header>
 
-        <!-- MOTOR GRÁFICO (CANVAS) -->
+        <!-- LIENZO DEL MOTOR GRÁFICO -->
         <main id="canvas-wrapper">
             <canvas id="gameCanvas"></canvas>
         </main>
 
-        <!-- MUELLE DE INTERACCIÓN DINÁMICA (PIANO / BOTONES) -->
-        <footer id="interaction-dock">
-            <div style="color: rgba(255,255,255,0.4); font-size: 1.1rem;">Selecciona un modo para empezar a interactuar</div>
-        </footer>
+        <!-- MUELLE DE INTERACCIÓN -->
+        <footer id="interaction-dock"></footer>
 
     </div>
 
-    <!-- Script Principal del Sistema -->
+    <!-- Carga del script unificado mediante módulos ES6 -->
     <script type="module" src="js/game.js"></script>
 </body>
 </html>
