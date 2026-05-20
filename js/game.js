@@ -20,20 +20,20 @@ const db = getFirestore(app);
 
 // MAPA DIATÓNICO PEDAGÓGICO
 const NOTE_MAP = {
-    'C4': { offset: -6, name: 'DO', group: 1, label: 'DO4' },
-    'D4': { offset: -5, name: 'RE', group: 1, label: 'RE4' },
-    'E4': { offset: -4, name: 'MI', group: 1, label: 'MI4' },
-    'F4': { offset: -3, name: 'FA', group: 1, label: 'FA4' },
-    'G4': { offset: -2, name: 'SOL', group: 1, label: 'SOL4' },
-    'A4': { offset: -1, name: 'LA', group: 1, label: 'LA4' },
-    'B4': { offset:  0, name: 'SI', group: 1, label: 'SI4' },
-    'C5': { offset:  1, name: 'DO', group: 2, label: 'DO5' },
-    'D5': { offset:  2, name: 'RE', group: 2, label: 'RE5' },
-    'E5': { offset:  3, name: 'MI', group: 2, label: 'MI5' },
-    'F5': { offset:  4, name: 'FA', group: 2, label: 'FA5' },
-    'G5': { offset:  5, name: 'SOL', group: 2, label: 'SOL5' },
-    'A5': { offset:  6, name: 'LA', group: 2, label: 'LA5' },
-    'B5': { offset:  7, name: 'SI', group: 2, label: 'SI5' }
+    'C4': { offset: -6, name: 'DO', group: 1, ledger: true },
+    'D4': { offset: -5, name: 'RE', group: 1, ledger: false },
+    'E4': { offset: -4, name: 'MI', group: 1, ledger: false },
+    'F4': { offset: -3, name: 'FA', group: 1, ledger: false },
+    'G4': { offset: -2, name: 'SOL', group: 1, ledger: false },
+    'A4': { offset: -1, name: 'LA', group: 1, ledger: false },
+    'B4': { offset:  0, name: 'SI', group: 1, ledger: false },
+    'C5': { offset:  1, name: 'DO', group: 2, ledger: false },
+    'D5': { offset:  2, name: 'RE', group: 2, ledger: false },
+    'E5': { offset:  3, name: 'MI', group: 2, ledger: false },
+    'F5': { offset:  4, name: 'FA', group: 2, ledger: false },
+    'G5': { offset:  5, name: 'SOL', group: 2, ledger: false },
+    'A5': { offset:  6, name: 'LA', group: 2, ledger: true },
+    'B5': { offset:  7, name: 'SI', group: 2, ledger: true }
 };
 
 // SYNTH WEBAUDIO API
@@ -108,7 +108,7 @@ class GameApp {
         this.isProcessing = false;   
 
         this.feedbackState = null;   
-        this.FEEDBACK_FRAMES = 35;   
+        this.FEEDBACK_FRAMES = 40;   
 
         this.state = {
             score: 0,
@@ -116,8 +116,7 @@ class GameApp {
             level: 1,
             accuracy: 100,
             selectedHead: 'nota',
-            subMode: 'normales',  
-            gameType: 'entrenamiento' 
+            subMode: 'normales'
         };
 
         this.levelNotes = [];
@@ -127,10 +126,6 @@ class GameApp {
         this.heads = ['nota','cerebro','dona','emoji1','emoji2','galleta','ovni','pelota','pizza','planeta','reloj','sol'];
         this.images = {};
         this.isAuthRegister = false;
-
-        this.timerValue = 0;
-        this.timerInterval = null;
-        this.lives = 3; 
 
         this._notifTimer = null;
     }
@@ -143,16 +138,24 @@ class GameApp {
         this.setupAuthUI();
         this.setupMenuEvents();
 
+        // Monitor de estado de sesión Firebase Auth
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 this.user = user;
                 this.isGuest = false;
-                const docSnap = await getDoc(doc(db, "users", user.uid));
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    this.state.selectedHead = data.selectedHead || 'nota';
-                    document.getElementById('user-welcome').innerText =
-                        `Sesión: ${data.username} (Récord: ${data.highScore || 0} pts)`;
+                try {
+                    const docSnap = await getDoc(doc(db, "users", user.uid));
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        this.state.selectedHead = data.selectedHead || 'nota';
+                        const record = data.highScore !== undefined ? data.highScore : 0;
+                        document.getElementById('user-welcome').innerText =
+                            `Sesión: ${data.username || 'Usuario'} (Récord: ${record} pts)`;
+                    } else {
+                        document.getElementById('user-welcome').innerText = `Sesión: Conectado (Récord: 0 pts)`;
+                    }
+                } catch (e) {
+                    document.getElementById('user-welcome').innerText = `Sesión: Conectado`;
                 }
                 document.getElementById('auth-layer').classList.add('hidden');
                 document.getElementById('menu-layer').classList.remove('hidden');
@@ -164,6 +167,7 @@ class GameApp {
             }
         });
 
+        // Desvanecimiento controlado del Splash Layer
         setTimeout(() => {
             const splash = document.getElementById('splash-layer');
             if (splash) {
@@ -178,9 +182,11 @@ class GameApp {
 
     resize() {
         const wrapper = this.canvas.parentElement;
-        this.canvas.width = wrapper.clientWidth;
-        this.canvas.height = wrapper.clientHeight;
-        this.spacing = Math.max(18, Math.min(30, this.canvas.height / 14));
+        if (wrapper) {
+            this.canvas.width = wrapper.clientWidth;
+            this.canvas.height = wrapper.clientHeight;
+            this.spacing = Math.max(18, Math.min(30, this.canvas.height / 14));
+        }
     }
 
     async preloadHeads() {
@@ -199,65 +205,69 @@ class GameApp {
         const passwordInput = document.getElementById('auth-password');
         const primaryBtn = document.getElementById('auth-primary-btn');
 
-        toggleBtn.addEventListener('click', () => {
-            this.isAuthRegister = !this.isAuthRegister;
-            document.getElementById('auth-title').innerText = this.isAuthRegister ? "CREAR CUENTA" : "INICIAR SESIÓN";
-            primaryBtn.innerText = this.isAuthRegister ? "Registrar" : "Entrar";
-            toggleBtn.innerText = this.isAuthRegister
-                ? "¿Ya tienes cuenta? Inicia Sesión"
-                : "¿No tienes cuenta? Regístrate";
-        });
-
-        primaryBtn.addEventListener('click', async () => {
-            const username = userInput.value.trim();
-            const password = passwordInput.value;
-
-            if (!username || !password) {
-                this.showNotif("Por favor, completa todos los campos.", 'warn');
-                return;
-            }
-            if (password.length < 6) {
-                this.showNotif("La contraseña debe tener al menos 6 caracteres.", 'warn');
-                return;
-            }
-
-            const cleanUsername = username.replace(/\s+/g, '').toLowerCase();
-            const virtualEmail = `${cleanUsername}@notaventuras.internal`;
-
-            primaryBtn.disabled = true;
-            primaryBtn.innerText = "Procesando...";
-
-            try {
-                if (this.isAuthRegister) {
-                    const cred = await createUserWithEmailAndPassword(auth, virtualEmail, password);
-                    await setDoc(doc(db, "users", cred.user.uid), {
-                        uid: cred.user.uid,
-                        username: username,
-                        highScore: 0,
-                        selectedHead: 'nota'
-                    });
-                } else {
-                    await signInWithEmailAndPassword(auth, virtualEmail, password);
-                }
-                userInput.value = "";
-                passwordInput.value = "";
-            } catch (err) {
-                let msg = "Ocurrió un problema inesperado.";
-                if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password" || err.code === "auth/user-not-found") {
-                    msg = "Usuario o contraseña incorrectos.";
-                } else if (err.code === "auth/email-already-in-use") {
-                    msg = "Ese nombre de usuario ya está registrado.";
-                } else if (err.code === "auth/network-request-failed") {
-                    msg = "Sin conexión a internet.";
-                } else {
-                    msg = err.message;
-                }
-                this.showNotif(`Error: ${msg}`, 'error');
-            } finally {
-                primaryBtn.disabled = false;
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                this.isAuthRegister = !this.isAuthRegister;
+                document.getElementById('auth-title').innerText = this.isAuthRegister ? "CREAR CUENTA" : "INICIAR SESIÓN";
                 primaryBtn.innerText = this.isAuthRegister ? "Registrar" : "Entrar";
-            }
-        });
+                toggleBtn.innerText = this.isAuthRegister
+                    ? "¿Ya tienes cuenta? Inicia Sesión"
+                    : "¿No tienes cuenta? Regístrate";
+            });
+        }
+
+        if (primaryBtn) {
+            primaryBtn.addEventListener('click', async () => {
+                const username = userInput.value.trim();
+                const password = passwordInput.value;
+
+                if (!username || !password) {
+                    this.showNotif("Por favor, completa todos los campos.", 'warn');
+                    return;
+                }
+                if (password.length < 6) {
+                    this.showNotif("La contraseña debe tener al menos 6 caracteres.", 'warn');
+                    return;
+                }
+
+                const cleanUsername = username.replace(/\s+/g, '').toLowerCase();
+                const virtualEmail = `${cleanUsername}@notaventuras.internal`;
+
+                primaryBtn.disabled = true;
+                primaryBtn.innerText = "Procesando...";
+
+                try {
+                    if (this.isAuthRegister) {
+                        const cred = await createUserWithEmailAndPassword(auth, virtualEmail, password);
+                        await setDoc(doc(db, "users", cred.user.uid), {
+                            uid: cred.user.uid,
+                            username: username,
+                            highScore: 0,
+                            selectedHead: 'nota'
+                        });
+                    } else {
+                        await signInWithEmailAndPassword(auth, virtualEmail, password);
+                    }
+                    userInput.value = "";
+                    passwordInput.value = "";
+                } catch (err) {
+                    let msg = "Ocurrió un problema inesperado.";
+                    if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password" || err.code === "auth/user-not-found") {
+                        msg = "Usuario o contraseña incorrectos.";
+                    } else if (err.code === "auth/email-already-in-use") {
+                        msg = "Ese nombre de usuario ya está registrado.";
+                    } else if (err.code === "auth/network-request-failed") {
+                        msg = "Sin conexión a internet.";
+                    } else {
+                        msg = err.message;
+                    }
+                    this.showNotif(`Error: ${msg}`, 'error');
+                } finally {
+                    primaryBtn.disabled = false;
+                    primaryBtn.innerText = this.isAuthRegister ? "Registrar" : "Entrar";
+                }
+            });
+        }
 
         document.getElementById('auth-guest-btn').addEventListener('click', () => {
             this.isGuest = true;
@@ -268,7 +278,6 @@ class GameApp {
         });
 
         document.getElementById('logout-btn').addEventListener('click', async () => {
-            this.stopTimer();
             this.gameActive = false;
             this.levelNotes = [];
             await signOut(auth);
@@ -281,22 +290,12 @@ class GameApp {
     }
 
     setupMenuEvents() {
-        document.querySelectorAll('.type-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                document.querySelectorAll('.type-btn').forEach(x => x.classList.remove('selected-type'));
-                e.target.classList.add('selected-type');
-                this.state.gameType = e.target.dataset.type;
-            });
-        });
-
-        document.querySelectorAll('.action-mode-btn').forEach(btn => {
+        document.querySelectorAll('.menu-btn[data-mode]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 this.state.subMode = e.target.dataset.mode;
                 this.state.score = 0;
                 this.state.combo = 0;
                 this.state.accuracy = 100;
-                this.lives = 3; 
-
                 document.getElementById('menu-layer').classList.add('hidden');
                 document.getElementById('menu-back-btn').classList.remove('hidden');
 
@@ -317,7 +316,6 @@ class GameApp {
             document.getElementById('custom-layer').classList.add('hidden'));
 
         document.getElementById('menu-back-btn').addEventListener('click', () => {
-            this.stopTimer();
             this.gameActive = false;
             this.levelNotes = [];
             this.feedbackState = null;
@@ -343,10 +341,11 @@ class GameApp {
                 const data = d.data();
                 const medal = medals[pos - 1] || `#${pos}`;
                 const isMe = this.user && d.id === this.user.uid;
+                const scoreVal = data.highScore !== undefined ? data.highScore : 0;
                 container.innerHTML += `
                     <div class="ranking-item ${isMe ? 'ranking-me' : ''}">
-                        <span>${medal} ${data.username}${isMe ? ' (tú)' : ''}</span>
-                        <span style="color:#FFD700;font-weight:bold;">${(data.highScore || 0).toLocaleString()} pts</span>
+                        <span>${medal} ${data.username || 'Anonimo'}${isMe ? ' (tú)' : ''}</span>
+                        <span style="color:#FFD700;font-weight:bold;">${scoreVal.toLocaleString()} pts</span>
                     </div>`;
                 pos++;
             });
@@ -360,6 +359,8 @@ class GameApp {
 
     buildCustomizerGrid() {
         const grid = document.getElementById('heads-grid');
+        if (!grid) return;
+        grid.innerHTML = '';
         this.heads.forEach(h => {
             const item = document.createElement('div');
             item.className = `head-item ${this.state.selectedHead === h ? 'selected' : ''}`;
@@ -397,47 +398,6 @@ class GameApp {
         });
     }
 
-    startTimer() {
-        this.stopTimer();
-        const timerUI = document.getElementById('hud-timer-container');
-        
-        if (this.state.gameType === 'contrareloj') {
-            this.timerValue = 45; 
-            timerUI.style.display = 'block';
-            document.getElementById('hud-timer').innerText = this.timerValue;
-
-            this.timerInterval = setInterval(() => {
-                this.timerValue--;
-                document.getElementById('hud-timer').innerText = this.timerValue;
-                if (this.timerValue <= 0) {
-                    this.stopTimer();
-                    this.gameActive = false;
-                    this.showNotif("⏱️ ¡Tiempo agotado!\nInténtalo de nuevo.", 'error', 3000, () => {
-                        this.exitToMenu();
-                    });
-                }
-            }, 1000);
-        } else {
-            timerUI.style.display = 'none';
-        }
-    }
-
-    stopTimer() {
-        if (this.timerInterval) {
-            clearInterval(this.timerInterval);
-            this.timerInterval = null;
-        }
-    }
-
-    exitToMenu() {
-        this.gameActive = false;
-        this.levelNotes = [];
-        this.feedbackState = null;
-        document.getElementById('menu-layer').classList.remove('hidden');
-        document.getElementById('menu-back-btn').classList.add('hidden');
-        document.getElementById('interaction-dock').innerHTML = '';
-    }
-
     startLevel(lvl) {
         this.state.level = lvl;
         this.currentIndex = 0;
@@ -458,41 +418,41 @@ class GameApp {
 
         this.buildInputDock();
         this.updateHUD();
-        this.startTimer();
     }
 
     buildInputDock() {
         const dock = document.getElementById('interaction-dock');
+        if (!dock) return;
         dock.innerHTML = '';
 
-        if (this.state.subMode === 'mixtas') {
-            const container = document.createElement('div');
-            container.className = 'botones-container mixtas-layout';
+        const isMobile = window.innerWidth < 768;
+        const pianoMode = (this.state.subMode === 'mixtas') && !isMobile;
 
-            const absoluteNotesOrder = ['C4','D4','E4','F4','G4','A4','B4','C5','D5','E5','F5','G5','A5','B5'];
-            
-            absoluteNotesOrder.forEach(k => {
-                const b = document.createElement('button');
-                const info = NOTE_MAP[k];
-                const octaveClass = info.group === 1 ? 'octava-normal' : 'octava-aguda';
-                b.className = `action-btn btn-small ${octaveClass}`;
-                b.innerHTML = `${info.name}<small>${info.group === 1 ? '4' : '5'}</small>`;
-                
-                b.addEventListener('click', () => this.evaluateInput(k));
-                container.appendChild(b);
+        if (pianoMode) {
+            const p = document.createElement('div');
+            p.className = 'piano-container';
+            const keys = this.state.subMode === 'agudas'
+                ? ['C5','D5','E5','F5','G5','A5','B5']
+                : ['C4','D4','E4','F4','G4','A4','B4','C5','D5','E5'];
+            keys.forEach(k => {
+                const key = document.createElement('div');
+                key.className = 'piano-key';
+                key.innerText = NOTE_MAP[k].name;
+                key.addEventListener('click', () => this.evaluateInput(k));
+                p.appendChild(key);
             });
-            dock.appendChild(container);
+            dock.appendChild(p);
         } else {
-            const container = document.createElement('div');
-            container.className = 'botones-container';
+            const c = document.createElement('div');
+            c.className = 'botones-container';
             ['DO','RE','MI','FA','SOL','LA','SI'].forEach(n => {
                 const b = document.createElement('button');
                 b.className = 'action-btn';
                 b.innerText = n;
                 b.addEventListener('click', () => this.evaluateInputByName(n));
-                container.appendChild(b);
+                c.appendChild(b);
             });
-            dock.appendChild(container);
+            dock.appendChild(c);
         }
     }
 
@@ -517,37 +477,11 @@ class GameApp {
             this.audio.feedback(true);
             currentNote.status = 'hit';
             this.state.combo++;
-            
-            const comboBonus = Math.min(this.state.combo * 5, 50);
-            this.state.score += (100 + comboBonus);
-
+            this.state.score += (100 * this.state.combo * this.state.level);
         } else {
             this.audio.feedback(false);
             currentNote.status = 'miss';
             this.state.combo = 0;
-
-            if (this.state.gameType === 'perfecto') {
-                this.stopTimer();
-                this.gameActive = false;
-                this.showNotif("🧠 ¡Mente Maestra Fallida!\nEste modo requiere 100% de perfección.", 'error', 3000, () => {
-                    this.exitToMenu();
-                });
-                return;
-            }
-            
-            if (this.state.gameType === 'supervivencia') {
-                this.lives--;
-                if (this.lives <= 0) {
-                    this.stopTimer();
-                    this.gameActive = false;
-                    this.showNotif("❤️ ¡Te has quedado sin vidas!\nMejora tu lectura antes de volver.", 'error', 3000, () => {
-                        this.exitToMenu();
-                    });
-                    return;
-                } else {
-                    this.showNotif(`💔 ¡Nota Incorrecta!\nTe quedan ${this.lives} vidas.`, 'warn', 1200);
-                }
-            }
         }
 
         const checked = this.levelNotes.filter(n => n.status !== 'pending').length;
@@ -567,7 +501,6 @@ class GameApp {
 
     async checkLevelEnd() {
         if (this.currentIndex >= 20) {
-            this.stopTimer();
             this.gameActive = false;
             await this.saveBestScore();
             this.showLevelEndModal();
@@ -579,10 +512,13 @@ class GameApp {
             try {
                 const userRef = doc(db, "users", this.user.uid);
                 const snap = await getDoc(userRef);
-                if (snap.exists() && this.state.score > (snap.data().highScore || 0)) {
-                    await updateDoc(userRef, { highScore: this.state.score });
-                    document.getElementById('user-welcome').innerText =
-                        `Sesión: ${snap.data().username} (Récord: ${this.state.score} pts)`;
+                if (snap.exists()) {
+                    const currentHighScore = snap.data().highScore !== undefined ? snap.data().highScore : 0;
+                    if (this.state.score > currentHighScore) {
+                        await updateDoc(userRef, { highScore: this.state.score });
+                        document.getElementById('user-welcome').innerText =
+                            `Sesión: ${snap.data().username || 'Usuario'} (Récord: ${this.state.score} pts)`;
+                    }
                 }
             } catch (e) { }
         }
@@ -590,17 +526,8 @@ class GameApp {
 
     showLevelEndModal() {
         const hits = this.levelNotes.filter(n => n.status === 'hit').length;
-        const modeLabels = {
-            entrenamiento: "Entrenamiento",
-            contrareloj: "Contrarreloj",
-            supervivencia: "Supervivencia",
-            perfecto: "Mente Maestra"
-        };
-        const currentLabel = modeLabels[this.state.gameType] || "Estándar";
-
-        const msg = `🎵 ¡Nivel ${this.state.level} (${currentLabel}) Completado!\n✅ Aciertos: ${hits}/20 · 🎯 ${this.state.accuracy}% precisión\n⭐ Puntaje Actual: ${this.state.score.toLocaleString()} pts`;
-        
-        this.showNotif(msg, 'success', 3500, () => {
+        const msg = `🎵 ¡Nivel ${this.state.level} completado!\n✅ Aciertos: ${hits}/20 · 🎯 ${this.state.accuracy}% precisión\n⭐ Puntaje: ${this.state.score.toLocaleString()} pts`;
+        this.showNotif(msg, 'success', 3000, () => {
             if (this.gameActive === false) {
                 this.startLevel(this.state.level + 1);
             }
@@ -608,19 +535,6 @@ class GameApp {
     }
 
     updateHUD() {
-        const modeTranslation = {
-            entrenamiento: "Práctica",
-            contrareloj: "Reloj",
-            supervivencia: "Vidas",
-            perfecto: "Perfecto"
-        };
-        
-        let modeString = modeTranslation[this.state.gameType] || "Normal";
-        if (this.state.gameType === 'supervivencia') {
-            modeString += ` (${'❤️'.repeat(this.lives)})`;
-        }
-
-        document.getElementById('hud-game-mode').innerText = modeString;
         document.getElementById('hud-level').innerText = this.state.level;
         document.getElementById('hud-note-count').innerText = `${Math.min(this.currentIndex + 1, 20)}/20`;
         document.getElementById('hud-score').innerText = this.state.score.toLocaleString();
@@ -728,7 +642,7 @@ class GameApp {
 
     drawTrebleClef(midY) {
         const size = this.spacing * 4.5;
-        this.ctx.font = \`${size}px serif\`;
+        this.ctx.font = `${size}px serif`;
         this.ctx.fillStyle = 'rgba(255,255,255,0.75)';
         this.ctx.fillText('𝄞', 35, midY + this.spacing * 2.8);
     }
@@ -772,7 +686,7 @@ class GameApp {
                 this.ctx.fillText('✗', x, midY - this.spacing * 4);
                 this.ctx.font = `${this.spacing * 0.9}px 'Fredoka One', sans-serif`;
                 this.ctx.fillStyle = `rgba(255, 215, 0, ${alpha})`;
-                this.ctx.fillText(`Era: ${NOTE_MAP[activeNote.key].label}`, x, midY + this.spacing * 5);
+                this.ctx.fillText(`Era: ${NOTE_MAP[activeNote.key].name}`, x, midY + this.spacing * 5);
                 this.ctx.textAlign = 'left';
             }
         }
