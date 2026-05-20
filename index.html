@@ -18,43 +18,26 @@
             <div class="loading-bar"><div class="progress"></div></div>
         </div>
 
-		<!-- CAPA DE AUTENTICACIÓN (ACTUALIZADA PARA SOLO USUARIO) -->
+		<!-- CAPA DE AUTENTICACIÓN -->
 		<div id="auth-layer" class="screen-overlay hidden">
 			<div class="menu-card">
 				<h2 id="auth-title">INICIAR SESIÓN</h2>
 				<div class="auth-form">
-					<!-- Este campo ahora sirve tanto para iniciar sesión como para registrarse -->
 					<input type="text" id="auth-username" placeholder="Nombre de Usuario" class="auth-input">
 					<input type="password" id="auth-password" placeholder="Contraseña" class="auth-input">
-					<button class="menu-btn" id="auth-primary-btn">Entrar</button>
-					<button class="menu-btn toggle" id="auth-toggle-btn">¿No tienes cuenta? Regístrate</button>
-					<hr style="border: 1px solid rgba(255,255,255,0.1); margin: 15px 0;">
-					<button class="menu-btn guest" id="auth-guest-btn">Jugar como Invitado</button>
+					<button class="menu-btn accent" id="auth-primary-btn">Entrar</button>
+					<button class="menu-btn text-only" id="auth-toggle-btn">¿No tienes cuenta? Regístrate</button>
+					<hr style="border: 1px solid rgba(255,255,255,0.1); margin: 10px 0; width:100%;">
+					<button class="menu-btn" id="auth-guest-btn" style="background: #2ECC71;">Modo Invitado</button>
 				</div>
 			</div>
 		</div>
 
-        <!-- MENÚ PRINCIPAL -->
-        <div id="menu-layer" class="screen-overlay hidden">
-            <div class="menu-card">
-                <h2>NOTAVENTURAS</h2>
-                <p id="user-welcome" style="color: #FFD700; margin-bottom: 20px;">Sesión: Invitado</p>
-                <div class="menu-grid">
-                    <button class="menu-btn" data-mode="normales">Notas Normales</button>
-                    <button class="menu-btn" data-mode="agudas">Notas Agudas</button>
-                    <button class="menu-btn" data-mode="mixtas">Notas Mixtas</button>
-                    <button class="menu-btn" id="open-ranking-btn">Ver Ranking Global</button>
-                    <button class="menu-btn accent" data-action="open-custom">Cambiar Avatar</button>
-                    <button class="menu-btn" id="logout-btn" style="background: #FF5555; border: none;">Salir</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- MODAL DE RANKING GLOBAL -->
+        <!-- RECUADRO DE CLASIFICACIÓN (RANKING) -->
         <div id="ranking-layer" class="screen-overlay hidden">
             <div class="menu-card">
                 <h2>RANKING GLOBAL</h2>
-                <div id="leaderboard-container">Cargando clasificaciones oficiales...</div>
+                <div id="leaderboard-container" class="ranking-box"></div>
                 <button class="menu-btn accent" id="close-ranking-btn" style="margin-top: 15px; width: 100%;">Cerrar Ranking</button>
             </div>
         </div>
@@ -70,25 +53,56 @@
 
         <!-- HUD SUPERIOR -->
         <header id="game-hud">
+            <div class="hud-item">MODO: <span id="hud-game-mode">-</span></div>
+            <div class="hud-item" id="hud-timer-container" style="display: none;">TIEMPO: <span id="hud-timer">45</span>s</div>
             <div class="hud-item">NIVEL: <span id="hud-level">1</span></div>
             <div class="hud-item">NOTA: <span id="hud-note-count">1/20</span></div>
             <div class="hud-item">PUNTOS: <span id="hud-score">0</span></div>
-            <div class="hud-item">RHA (COMBO): <span id="hud-combo">0</span></div>
+            <div class="hud-item">COMBO: <span id="hud-combo">0</span></div>
             <div class="hud-item">PRECISIÓN: <span id="hud-accuracy">100</span>%</div>
             <button id="menu-back-btn" class="hud-back hidden">Abandonar</button>
         </header>
+
+        <!-- MENÚ PRINCIPAL -->
+        <div id="menu-layer" class="screen-overlay hidden">
+            <div class="menu-card" style="max-height: 95vh; overflow-y: auto;">
+                <h2>NOTAVENTURAS</h2>
+                <p id="user-welcome" style="color: #FFD700; margin-bottom: 15px;">Sesión: Invitado</p>
+                
+                <!-- SELECCIÓN TIPO DE JUEGO -->
+                <h3 style="font-size: 1rem; color: #41E1FA; margin-bottom: 8px; text-transform: uppercase;">1. Selecciona Modo de Juego</h3>
+                <div class="menu-grid" style="margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <button class="menu-btn type-btn selected-type" data-type="entrenamiento" style="font-size: 0.9rem; padding: 10px;">Entrenamiento</button>
+                    <button class="menu-btn type-btn" data-type="contrareloj" style="font-size: 0.9rem; padding: 10px;">Contrarreloj</button>
+                    <button class="menu-btn type-btn" data-type="supervivencia" style="font-size: 0.9rem; padding: 10px;">Supervivencia</button>
+                    <button class="menu-btn type-btn" data-type="perfecto" style="font-size: 0.9rem; padding: 10px;">Mente Maestra</button>
+                </div>
+
+                <!-- SELECCIÓN RANGO DE NOTAS -->
+                <h3 style="font-size: 1rem; color: #41E1FA; margin-bottom: 8px; text-transform: uppercase;">2. Selecciona Rango de Notas</h3>
+                <div class="menu-grid">
+                    <button class="menu-btn action-mode-btn" data-mode="normales">Notas Normales</button>
+                    <button class="menu-btn action-mode-btn" data-mode="agudas">Notas Agudas</button>
+                    <button class="menu-btn action-mode-btn" data-mode="mixtas">Notas Mixtas</button>
+                    <hr style="border: 1px solid rgba(255,255,255,0.1); margin: 10px 0;">
+                    <button class="menu-btn" id="open-ranking-btn">Ver Ranking Global</button>
+                    <button class="menu-btn accent" data-action="open-custom">Cambiar Avatar</button>
+                    <button class="menu-btn" id="logout-btn" style="background: #FF5555; border: none; margin-top: 5px;">Salir</button>
+                </div>
+            </div>
+        </div>
 
         <!-- LIENZO DEL MOTOR GRÁFICO -->
         <main id="canvas-wrapper">
             <canvas id="gameCanvas"></canvas>
         </main>
 
-        <!-- MUELLE DE INTERACCIÓN -->
+        <!-- MUELLE DE INTERACCIÓN DINÁMICA -->
         <footer id="interaction-dock"></footer>
 
     </div>
 
-    <!-- Carga del script unificado mediante módulos ES6 -->
+    <!-- MÓDULO PRINCIPAL DEL JUEGO -->
     <script type="module" src="js/game.js"></script>
 </body>
 </html>

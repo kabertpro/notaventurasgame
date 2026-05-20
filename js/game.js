@@ -20,20 +20,20 @@ const db = getFirestore(app);
 
 // MAPA DIATÓNICO PEDAGÓGICO
 const NOTE_MAP = {
-    'C4': { offset: -6, name: 'DO', group: 1, ledger: true },
-    'D4': { offset: -5, name: 'RE', group: 1, ledger: false },
-    'E4': { offset: -4, name: 'MI', group: 1, ledger: false },
-    'F4': { offset: -3, name: 'FA', group: 1, ledger: false },
-    'G4': { offset: -2, name: 'SOL', group: 1, ledger: false },
-    'A4': { offset: -1, name: 'LA', group: 1, ledger: false },
-    'B4': { offset:  0, name: 'SI', group: 1, ledger: false },
-    'C5': { offset:  1, name: 'DO', group: 2, ledger: false },
-    'D5': { offset:  2, name: 'RE', group: 2, ledger: false },
-    'E5': { offset:  3, name: 'MI', group: 2, ledger: false },
-    'F5': { offset:  4, name: 'FA', group: 2, ledger: false },
-    'G5': { offset:  5, name: 'SOL', group: 2, ledger: false },
-    'A5': { offset:  6, name: 'LA', group: 2, ledger: true },
-    'B5': { offset:  7, name: 'SI', group: 2, ledger: true }
+    'C4': { offset: -6, name: 'DO', group: 1, label: 'DO4' },
+    'D4': { offset: -5, name: 'RE', group: 1, label: 'RE4' },
+    'E4': { offset: -4, name: 'MI', group: 1, label: 'MI4' },
+    'F4': { offset: -3, name: 'FA', group: 1, label: 'FA4' },
+    'G4': { offset: -2, name: 'SOL', group: 1, label: 'SOL4' },
+    'A4': { offset: -1, name: 'LA', group: 1, label: 'LA4' },
+    'B4': { offset:  0, name: 'SI', group: 1, label: 'SI4' },
+    'C5': { offset:  1, name: 'DO', group: 2, label: 'DO5' },
+    'D5': { offset:  2, name: 'RE', group: 2, label: 'RE5' },
+    'E5': { offset:  3, name: 'MI', group: 2, label: 'MI5' },
+    'F5': { offset:  4, name: 'FA', group: 2, label: 'FA5' },
+    'G5': { offset:  5, name: 'SOL', group: 2, label: 'SOL5' },
+    'A5': { offset:  6, name: 'LA', group: 2, label: 'LA5' },
+    'B5': { offset:  7, name: 'SI', group: 2, label: 'SI5' }
 };
 
 // SYNTH WEBAUDIO API
@@ -49,7 +49,6 @@ class AudioEngine {
 
     init() {
         if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-        // Reanudar contexto si fue suspendido por el navegador
         if (this.ctx.state === 'suspended') this.ctx.resume();
     }
 
@@ -105,12 +104,11 @@ class GameApp {
 
         this.user = null;
         this.isGuest = false;
-        this.gameActive = false;     // FIX: controla si hay juego en curso
-        this.isProcessing = false;   // FIX: evita doble-click / race conditions
+        this.gameActive = false;     
+        this.isProcessing = false;   
 
-        // Estado de retroalimentación visual (para móvil: mostrar resultado antes de avanzar)
-        this.feedbackState = null;   // { result: 'hit'|'miss', timer: N }
-        this.FEEDBACK_FRAMES = 40;   // ~0.67s a 60fps
+        this.feedbackState = null;   
+        this.FEEDBACK_FRAMES = 35;   
 
         this.state = {
             score: 0,
@@ -118,7 +116,8 @@ class GameApp {
             level: 1,
             accuracy: 100,
             selectedHead: 'nota',
-            subMode: 'normales'
+            subMode: 'normales',  
+            gameType: 'entrenamiento' 
         };
 
         this.levelNotes = [];
@@ -129,7 +128,10 @@ class GameApp {
         this.images = {};
         this.isAuthRegister = false;
 
-        // Notificación flotante (reemplaza alert())
+        this.timerValue = 0;
+        this.timerInterval = null;
+        this.lives = 3; 
+
         this._notifTimer = null;
     }
 
@@ -141,7 +143,6 @@ class GameApp {
         this.setupAuthUI();
         this.setupMenuEvents();
 
-        // Monitor de estado de sesión Firebase Auth
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 this.user = user;
@@ -151,9 +152,8 @@ class GameApp {
                     const data = docSnap.data();
                     this.state.selectedHead = data.selectedHead || 'nota';
                     document.getElementById('user-welcome').innerText =
-                        `Sesión: ${data.username} (Récord: ${data.highScore} pts)`;
+                        `Sesión: ${data.username} (Récord: ${data.highScore || 0} pts)`;
                 }
-                // FIX: era .add() en lugar de .classList.add()
                 document.getElementById('auth-layer').classList.add('hidden');
                 document.getElementById('menu-layer').classList.remove('hidden');
             } else {
@@ -173,7 +173,6 @@ class GameApp {
             }
         }, 1800);
 
-        // Arrancar el loop de render (siempre corre, dibuja según gameActive)
         this.loop();
     }
 
@@ -181,7 +180,6 @@ class GameApp {
         const wrapper = this.canvas.parentElement;
         this.canvas.width = wrapper.clientWidth;
         this.canvas.height = wrapper.clientHeight;
-        // Recalcular spacing según altura disponible
         this.spacing = Math.max(18, Math.min(30, this.canvas.height / 14));
     }
 
@@ -195,9 +193,6 @@ class GameApp {
         await Promise.all(p);
     }
 
-    // ==========================================
-    // AUTENTICACIÓN
-    // ==========================================
     setupAuthUI() {
         const toggleBtn = document.getElementById('auth-toggle-btn');
         const userInput = document.getElementById('auth-username');
@@ -226,7 +221,6 @@ class GameApp {
                 return;
             }
 
-            // Convertir usuario a correo sintético para Firebase Auth
             const cleanUsername = username.replace(/\s+/g, '').toLowerCase();
             const virtualEmail = `${cleanUsername}@notaventuras.internal`;
 
@@ -247,7 +241,6 @@ class GameApp {
                 }
                 userInput.value = "";
                 passwordInput.value = "";
-                // El onAuthStateChanged se encarga del resto
             } catch (err) {
                 let msg = "Ocurrió un problema inesperado.";
                 if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password" || err.code === "auth/user-not-found") {
@@ -275,6 +268,7 @@ class GameApp {
         });
 
         document.getElementById('logout-btn').addEventListener('click', async () => {
+            this.stopTimer();
             this.gameActive = false;
             this.levelNotes = [];
             await signOut(auth);
@@ -286,16 +280,23 @@ class GameApp {
         });
     }
 
-    // ==========================================
-    // MENÚ Y NAVEGACIÓN
-    // ==========================================
     setupMenuEvents() {
-        document.querySelectorAll('.menu-btn[data-mode]').forEach(btn => {
+        document.querySelectorAll('.type-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.type-btn').forEach(x => x.classList.remove('selected-type'));
+                e.target.classList.add('selected-type');
+                this.state.gameType = e.target.dataset.type;
+            });
+        });
+
+        document.querySelectorAll('.action-mode-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 this.state.subMode = e.target.dataset.mode;
                 this.state.score = 0;
                 this.state.combo = 0;
                 this.state.accuracy = 100;
+                this.lives = 3; 
+
                 document.getElementById('menu-layer').classList.add('hidden');
                 document.getElementById('menu-back-btn').classList.remove('hidden');
 
@@ -316,6 +317,7 @@ class GameApp {
             document.getElementById('custom-layer').classList.add('hidden'));
 
         document.getElementById('menu-back-btn').addEventListener('click', () => {
+            this.stopTimer();
             this.gameActive = false;
             this.levelNotes = [];
             this.feedbackState = null;
@@ -326,9 +328,6 @@ class GameApp {
         });
     }
 
-    // ==========================================
-    // RANKING
-    // ==========================================
     async showRanking() {
         const container = document.getElementById('leaderboard-container');
         container.innerHTML = '<div style="text-align:center;padding:20px;color:#41E1FA;">Consultando Firestore...</div>';
@@ -347,7 +346,7 @@ class GameApp {
                 container.innerHTML += `
                     <div class="ranking-item ${isMe ? 'ranking-me' : ''}">
                         <span>${medal} ${data.username}${isMe ? ' (tú)' : ''}</span>
-                        <span style="color:#FFD700;font-weight:bold;">${data.highScore.toLocaleString()} pts</span>
+                        <span style="color:#FFD700;font-weight:bold;">${(data.highScore || 0).toLocaleString()} pts</span>
                     </div>`;
                 pos++;
             });
@@ -359,9 +358,6 @@ class GameApp {
         }
     }
 
-    // ==========================================
-    // PERSONALIZADOR DE AVATARES
-    // ==========================================
     buildCustomizerGrid() {
         const grid = document.getElementById('heads-grid');
         this.heads.forEach(h => {
@@ -373,7 +369,6 @@ class GameApp {
             th.width = 50; th.height = 50;
             const tc = th.getContext('2d');
 
-            // Renderizar miniatura una vez que imágenes estén listas
             const renderThumb = () => {
                 tc.clearRect(0, 0, 50, 50);
                 if (this.images[h]) {
@@ -384,7 +379,6 @@ class GameApp {
                 }
             };
 
-            // Intentar inmediatamente, y también tras un delay por si las imágenes tardan
             renderThumb();
             setTimeout(renderThumb, 300);
 
@@ -396,16 +390,54 @@ class GameApp {
                 if (this.user && !this.isGuest) {
                     try {
                         await updateDoc(doc(db, "users", this.user.uid), { selectedHead: h });
-                    } catch (e) { /* silencioso */ }
+                    } catch (e) { }
                 }
             });
             grid.appendChild(item);
         });
     }
 
-    // ==========================================
-    // LÓGICA DE NIVEL
-    // ==========================================
+    startTimer() {
+        this.stopTimer();
+        const timerUI = document.getElementById('hud-timer-container');
+        
+        if (this.state.gameType === 'contrareloj') {
+            this.timerValue = 45; 
+            timerUI.style.display = 'block';
+            document.getElementById('hud-timer').innerText = this.timerValue;
+
+            this.timerInterval = setInterval(() => {
+                this.timerValue--;
+                document.getElementById('hud-timer').innerText = this.timerValue;
+                if (this.timerValue <= 0) {
+                    this.stopTimer();
+                    this.gameActive = false;
+                    this.showNotif("⏱️ ¡Tiempo agotado!\nInténtalo de nuevo.", 'error', 3000, () => {
+                        this.exitToMenu();
+                    });
+                }
+            }, 1000);
+        } else {
+            timerUI.style.display = 'none';
+        }
+    }
+
+    stopTimer() {
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+        }
+    }
+
+    exitToMenu() {
+        this.gameActive = false;
+        this.levelNotes = [];
+        this.feedbackState = null;
+        document.getElementById('menu-layer').classList.remove('hidden');
+        document.getElementById('menu-back-btn').classList.add('hidden');
+        document.getElementById('interaction-dock').innerHTML = '';
+    }
+
     startLevel(lvl) {
         this.state.level = lvl;
         this.currentIndex = 0;
@@ -426,45 +458,41 @@ class GameApp {
 
         this.buildInputDock();
         this.updateHUD();
+        this.startTimer();
     }
 
-    // ==========================================
-    // CONTROLES DE INTERACCIÓN
-    // ==========================================
     buildInputDock() {
         const dock = document.getElementById('interaction-dock');
         dock.innerHTML = '';
 
-        const isMobile = window.innerWidth < 768;
-        const pianoMode = (this.state.subMode === 'mixtas') && !isMobile;
+        if (this.state.subMode === 'mixtas') {
+            const container = document.createElement('div');
+            container.className = 'botones-container mixtas-layout';
 
-        if (pianoMode) {
-            // Piano en escritorio para modo mixto
-            const p = document.createElement('div');
-            p.className = 'piano-container';
-            const keys = this.state.subMode === 'agudas'
-                ? ['C5','D5','E5','F5','G5','A5','B5']
-                : ['C4','D4','E4','F4','G4','A4','B4','C5','D5','E5'];
-            keys.forEach(k => {
-                const key = document.createElement('div');
-                key.className = 'piano-key';
-                key.innerText = NOTE_MAP[k].name;
-                key.addEventListener('click', () => this.evaluateInput(k));
-                p.appendChild(key);
+            const absoluteNotesOrder = ['C4','D4','E4','F4','G4','A4','B4','C5','D5','E5','F5','G5','A5','B5'];
+            
+            absoluteNotesOrder.forEach(k => {
+                const b = document.createElement('button');
+                const info = NOTE_MAP[k];
+                const octaveClass = info.group === 1 ? 'octava-normal' : 'octava-aguda';
+                b.className = `action-btn btn-small ${octaveClass}`;
+                b.innerHTML = `${info.name}<small>${info.group === 1 ? '4' : '5'}</small>`;
+                
+                b.addEventListener('click', () => this.evaluateInput(k));
+                container.appendChild(b);
             });
-            dock.appendChild(p);
+            dock.appendChild(container);
         } else {
-            // Botones para cualquier otro modo
-            const c = document.createElement('div');
-            c.className = 'botones-container';
+            const container = document.createElement('div');
+            container.className = 'botones-container';
             ['DO','RE','MI','FA','SOL','LA','SI'].forEach(n => {
                 const b = document.createElement('button');
                 b.className = 'action-btn';
                 b.innerText = n;
                 b.addEventListener('click', () => this.evaluateInputByName(n));
-                c.appendChild(b);
+                container.appendChild(b);
             });
-            dock.appendChild(c);
+            dock.appendChild(container);
         }
     }
 
@@ -489,24 +517,47 @@ class GameApp {
             this.audio.feedback(true);
             currentNote.status = 'hit';
             this.state.combo++;
-            this.state.score += (100 * this.state.combo * this.state.level);
+            
+            const comboBonus = Math.min(this.state.combo * 5, 50);
+            this.state.score += (100 + comboBonus);
+
         } else {
             this.audio.feedback(false);
             currentNote.status = 'miss';
             this.state.combo = 0;
+
+            if (this.state.gameType === 'perfecto') {
+                this.stopTimer();
+                this.gameActive = false;
+                this.showNotif("🧠 ¡Mente Maestra Fallida!\nEste modo requiere 100% de perfección.", 'error', 3000, () => {
+                    this.exitToMenu();
+                });
+                return;
+            }
+            
+            if (this.state.gameType === 'supervivencia') {
+                this.lives--;
+                if (this.lives <= 0) {
+                    this.stopTimer();
+                    this.gameActive = false;
+                    this.showNotif("❤️ ¡Te has quedado sin vidas!\nMejora tu lectura antes de volver.", 'error', 3000, () => {
+                        this.exitToMenu();
+                    });
+                    return;
+                } else {
+                    this.showNotif(`💔 ¡Nota Incorrecta!\nTe quedan ${this.lives} vidas.`, 'warn', 1200);
+                }
+            }
         }
 
-        // Precisión basada en notas procesadas
         const checked = this.levelNotes.filter(n => n.status !== 'pending').length;
         const hits = this.levelNotes.filter(n => n.status === 'hit').length;
         this.state.accuracy = checked > 0 ? Math.round((hits / checked) * 100) : 100;
         this.updateHUD();
 
-        // En móvil: mostrar feedback visual antes de avanzar
         const isMobile = window.innerWidth < 768;
         if (isMobile) {
             this.feedbackState = { result: isCorrect ? 'hit' : 'miss', timer: this.FEEDBACK_FRAMES };
-            // El avance lo gestiona el loop al terminar el timer
         } else {
             this.currentIndex++;
             this.isProcessing = false;
@@ -516,6 +567,7 @@ class GameApp {
 
     async checkLevelEnd() {
         if (this.currentIndex >= 20) {
+            this.stopTimer();
             this.gameActive = false;
             await this.saveBestScore();
             this.showLevelEndModal();
@@ -527,20 +579,28 @@ class GameApp {
             try {
                 const userRef = doc(db, "users", this.user.uid);
                 const snap = await getDoc(userRef);
-                if (snap.exists() && this.state.score > snap.data().highScore) {
+                if (snap.exists() && this.state.score > (snap.data().highScore || 0)) {
                     await updateDoc(userRef, { highScore: this.state.score });
                     document.getElementById('user-welcome').innerText =
                         `Sesión: ${snap.data().username} (Récord: ${this.state.score} pts)`;
                 }
-            } catch (e) { /* conexión fallida, continuar */ }
+            } catch (e) { }
         }
     }
 
-    // Notificación flotante que reemplaza alert()
     showLevelEndModal() {
         const hits = this.levelNotes.filter(n => n.status === 'hit').length;
-        const msg = `🎵 ¡Nivel ${this.state.level} completado!\n✅ Aciertos: ${hits}/20 · 🎯 ${this.state.accuracy}% precisión\n⭐ Puntaje: ${this.state.score.toLocaleString()} pts`;
-        this.showNotif(msg, 'success', 3000, () => {
+        const modeLabels = {
+            entrenamiento: "Entrenamiento",
+            contrareloj: "Contrarreloj",
+            supervivencia: "Supervivencia",
+            perfecto: "Mente Maestra"
+        };
+        const currentLabel = modeLabels[this.state.gameType] || "Estándar";
+
+        const msg = `🎵 ¡Nivel ${this.state.level} (${currentLabel}) Completado!\n✅ Aciertos: ${hits}/20 · 🎯 ${this.state.accuracy}% precisión\n⭐ Puntaje Actual: ${this.state.score.toLocaleString()} pts`;
+        
+        this.showNotif(msg, 'success', 3500, () => {
             if (this.gameActive === false) {
                 this.startLevel(this.state.level + 1);
             }
@@ -548,6 +608,19 @@ class GameApp {
     }
 
     updateHUD() {
+        const modeTranslation = {
+            entrenamiento: "Práctica",
+            contrareloj: "Reloj",
+            supervivencia: "Vidas",
+            perfecto: "Perfecto"
+        };
+        
+        let modeString = modeTranslation[this.state.gameType] || "Normal";
+        if (this.state.gameType === 'supervivencia') {
+            modeString += ` (${'❤️'.repeat(this.lives)})`;
+        }
+
+        document.getElementById('hud-game-mode').innerText = modeString;
         document.getElementById('hud-level').innerText = this.state.level;
         document.getElementById('hud-note-count').innerText = `${Math.min(this.currentIndex + 1, 20)}/20`;
         document.getElementById('hud-score').innerText = this.state.score.toLocaleString();
@@ -555,9 +628,6 @@ class GameApp {
         document.getElementById('hud-accuracy').innerText = this.state.accuracy;
     }
 
-    // ==========================================
-    // SISTEMA DE NOTIFICACIONES (reemplaza alert)
-    // ==========================================
     showNotif(msg, type = 'info', duration = 2500, onClose = null) {
         let notif = document.getElementById('game-notif');
         if (!notif) {
@@ -587,7 +657,6 @@ class GameApp {
         notif.innerText = msg;
         notif.style.display = 'block';
 
-        // Añadir keyframe si no existe
         if (!document.getElementById('notif-style')) {
             const s = document.createElement('style');
             s.id = 'notif-style';
@@ -602,9 +671,6 @@ class GameApp {
         }, duration);
     }
 
-    // ==========================================
-    // RENDER LOOP
-    // ==========================================
     loop() {
         requestAnimationFrame(() => this.loop());
         const ctx = this.ctx;
@@ -612,7 +678,6 @@ class GameApp {
         const H = this.canvas.height;
         ctx.clearRect(0, 0, W, H);
 
-        // Fondo degradado sutil del canvas
         const bg = ctx.createLinearGradient(0, 0, 0, H);
         bg.addColorStop(0, 'rgba(11,19,43,0.6)');
         bg.addColorStop(1, 'rgba(28,37,65,0.3)');
@@ -620,7 +685,6 @@ class GameApp {
         ctx.fillRect(0, 0, W, H);
 
         if (!this.gameActive || this.levelNotes.length === 0) {
-            // Pantalla vacía con pentagrama decorativo
             this.drawStaff(W, H);
             return;
         }
@@ -628,7 +692,6 @@ class GameApp {
         const isMobile = window.innerWidth < 768;
         const midY = H / 2;
 
-        // ---- GESTIÓN DEL TIMER DE FEEDBACK EN MÓVIL ----
         if (isMobile && this.feedbackState) {
             this.feedbackState.timer--;
             if (this.feedbackState.timer <= 0) {
@@ -640,13 +703,9 @@ class GameApp {
             }
         }
 
-        // 1. DIBUJAR PENTAGRAMA
         this.drawStaff(W, H);
-
-        // 2. DIBUJAR CLAVE DE SOL
         this.drawTrebleClef(midY);
 
-        // 3. RENDERIZADO CONDICIONAL
         if (isMobile) {
             this.renderMobile(midY, W);
         } else {
@@ -668,14 +727,12 @@ class GameApp {
     }
 
     drawTrebleClef(midY) {
-        // Clave de Sol simplificada como texto Unicode (escala con spacing)
         const size = this.spacing * 4.5;
-        this.ctx.font = `${size}px serif`;
+        this.ctx.font = \`${size}px serif\`;
         this.ctx.fillStyle = 'rgba(255,255,255,0.75)';
         this.ctx.fillText('𝄞', 35, midY + this.spacing * 2.8);
     }
 
-    // --- MODO MÓVIL: 1 NOTA A LA VEZ CON FEEDBACK VISUAL ---
     renderMobile(midY, W) {
         if (this.currentIndex >= this.levelNotes.length) return;
 
@@ -684,7 +741,6 @@ class GameApp {
         const x = W / 2;
         const y = midY - (data.offset * (this.spacing / 2));
 
-        // Halo de la nota activa
         this.ctx.fillStyle = 'rgba(65, 225, 250, 0.1)';
         this.ctx.beginPath();
         this.ctx.arc(x, midY, this.spacing * 3.5, 0, Math.PI * 2);
@@ -693,7 +749,6 @@ class GameApp {
         this.drawLedgerLines(x, data.offset, midY);
         this.drawNoteheadAsset(x, y, this.state.selectedHead);
 
-        // Feedback visual superpuesto
         if (this.feedbackState) {
             const alpha = Math.min(1, this.feedbackState.timer / 15);
             if (this.feedbackState.result === 'hit') {
@@ -715,19 +770,17 @@ class GameApp {
                 this.ctx.font = `bold ${this.spacing * 2.5}px sans-serif`;
                 this.ctx.textAlign = 'center';
                 this.ctx.fillText('✗', x, midY - this.spacing * 4);
-                // Mostrar la nota correcta
                 this.ctx.font = `${this.spacing * 0.9}px 'Fredoka One', sans-serif`;
                 this.ctx.fillStyle = `rgba(255, 215, 0, ${alpha})`;
-                this.ctx.fillText(`Era: ${NOTE_MAP[activeNote.key].name}`, x, midY + this.spacing * 5);
+                this.ctx.fillText(`Era: ${NOTE_MAP[activeNote.key].label}`, x, midY + this.spacing * 5);
                 this.ctx.textAlign = 'left';
             }
         }
     }
 
-    // --- MODO ESCRITORIO: 10 NOTAS CON INDICADORES ---
     renderDesktop(midY, W) {
         let startBatch = Math.floor(this.currentIndex / 10) * 10;
-        const clefOffset = 90; // Espacio para la clave de sol
+        const clefOffset = 90; 
         const usableW = W - clefOffset - 30;
         const trackWidth = usableW / 11;
 
@@ -740,7 +793,6 @@ class GameApp {
             const x = clefOffset + trackWidth * (i + 1);
             const y = midY - (data.offset * (this.spacing / 2));
 
-            // Halo de nota activa
             if (targetNoteIndex === this.currentIndex) {
                 const pulse = 0.1 + 0.05 * Math.sin(Date.now() / 200);
                 this.ctx.fillStyle = `rgba(65, 225, 250, ${pulse})`;
@@ -749,13 +801,11 @@ class GameApp {
                 this.ctx.fill();
             }
 
-            // Nota con opacidad reducida si ya fue respondida
             this.ctx.globalAlpha = noteItem.status !== 'pending' ? 0.45 : 1.0;
             this.drawLedgerLines(x, data.offset, midY);
             this.drawNoteheadAsset(x, y, this.state.selectedHead);
             this.ctx.globalAlpha = 1.0;
 
-            // Indicadores de resultado
             const iconY = midY - (this.spacing * 3.2);
             if (noteItem.status === 'hit') {
                 this.ctx.fillStyle = '#2ECC71';
@@ -769,7 +819,6 @@ class GameApp {
                 this.ctx.fillText('✗', x, iconY);
             }
 
-            // Número de posición debajo
             this.ctx.fillStyle = 'rgba(255,255,255,0.25)';
             this.ctx.font = `${this.spacing * 0.55}px 'Nunito', sans-serif`;
             this.ctx.textAlign = 'center';
@@ -778,35 +827,20 @@ class GameApp {
         }
     }
 
-    // ==========================================
-    // HELPERS DE DIBUJO
-    // ==========================================
     drawLedgerLines(x, offset, midY) {
         this.ctx.strokeStyle = 'rgba(255,255,255,0.85)';
         this.ctx.lineWidth = 2;
-        // Línea adicional inferior (DO central - C4)
         if (offset <= -6) {
             const ly = midY + (3 * this.spacing);
-            this.ctx.beginPath();
-            this.ctx.moveTo(x - 22, ly);
-            this.ctx.lineTo(x + 22, ly);
-            this.ctx.stroke();
+            this.ctx.beginPath(); this.ctx.moveTo(x - 22, ly); this.ctx.lineTo(x + 22, ly); this.ctx.stroke();
         }
-        // Línea adicional superior (LA5, SI5)
         if (offset >= 6) {
             const ly = midY - (3 * this.spacing);
-            this.ctx.beginPath();
-            this.ctx.moveTo(x - 22, ly);
-            this.ctx.lineTo(x + 22, ly);
-            this.ctx.stroke();
+            this.ctx.beginPath(); this.ctx.moveTo(x - 22, ly); this.ctx.lineTo(x + 22, ly); this.ctx.stroke();
         }
-        // Segunda línea adicional (SI5 - offset 7)
         if (offset >= 7) {
             const ly = midY - (3.5 * this.spacing);
-            this.ctx.beginPath();
-            this.ctx.moveTo(x - 22, ly);
-            this.ctx.lineTo(x + 22, ly);
-            this.ctx.stroke();
+            this.ctx.beginPath(); this.ctx.moveTo(x - 22, ly); this.ctx.lineTo(x + 22, ly); this.ctx.stroke();
         }
     }
 
@@ -818,7 +852,6 @@ class GameApp {
             const targetW = (img.naturalWidth || 300) * factor;
             this.ctx.drawImage(img, x - (targetW / 2), y - (targetH / 2), targetW, targetH);
         } else {
-            // Fallback: elipse estilo nota musical
             this.ctx.fillStyle = '#41E1FA';
             this.ctx.beginPath();
             this.ctx.ellipse(x, y, this.spacing * 0.6, this.spacing * 0.45, -0.2, 0, Math.PI * 2);
@@ -830,7 +863,4 @@ class GameApp {
     }
 }
 
-// ==========================================
-// PUNTO DE ENTRADA
-// ==========================================
 document.addEventListener('DOMContentLoaded', () => { (new GameApp()).init(); });
