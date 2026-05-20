@@ -49,6 +49,7 @@ class AudioEngine {
 
     init() {
         if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        // Reanudar contexto si fue suspendido por el navegador
         if (this.ctx.state === 'suspended') this.ctx.resume();
     }
 
@@ -104,11 +105,12 @@ class GameApp {
 
         this.user = null;
         this.isGuest = false;
-        this.gameActive = false;     
-        this.isProcessing = false;   
+        this.gameActive = false;     // FIX: controla si hay juego en curso
+        this.isProcessing = false;   // FIX: evita doble-click / race conditions
 
-        this.feedbackState = null;   
-        this.FEEDBACK_FRAMES = 40;   
+        // Estado de retroalimentación visual (para móvil: mostrar resultado antes de avanzar)
+        this.feedbackState = null;   // { result: 'hit'|'miss', timer: N }
+        this.FEEDBACK_FRAMES = 40;   // ~0.67s a 60fps
 
         this.state = {
             score: 0,
@@ -127,6 +129,7 @@ class GameApp {
         this.images = {};
         this.isAuthRegister = false;
 
+        // Notificación flotante (reemplaza alert())
         this._notifTimer = null;
     }
 
@@ -143,20 +146,14 @@ class GameApp {
             if (user) {
                 this.user = user;
                 this.isGuest = false;
-                try {
-                    const docSnap = await getDoc(doc(db, "users", user.uid));
-                    if (docSnap.exists()) {
-                        const data = docSnap.data();
-                        this.state.selectedHead = data.selectedHead || 'nota';
-                        const record = data.highScore !== undefined ? data.highScore : 0;
-                        document.getElementById('user-welcome').innerText =
-                            `Sesión: ${data.username || 'Usuario'} (Récord: ${record} pts)`;
-                    } else {
-                        document.getElementById('user-welcome').innerText = `Sesión: Conectado (Récord: 0 pts)`;
-                    }
-                } catch (e) {
-                    document.getElementById('user-welcome').innerText = `Sesión: Conectado`;
+                const docSnap = await getDoc(doc(db, "users", user.uid));
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    this.state.selectedHead = data.selectedHead || 'nota';
+                    document.getElementById('user-welcome').innerText =
+                        `Sesión: ${data.username} (Récord: ${data.highScore} pts)`;
                 }
+                // FIX: era .add() en lugar de .classList.add()
                 document.getElementById('auth-layer').classList.add('hidden');
                 document.getElementById('menu-layer').classList.remove('hidden');
             } else {
@@ -167,7 +164,6 @@ class GameApp {
             }
         });
 
-        // Desvanecimiento controlado del Splash Layer
         setTimeout(() => {
             const splash = document.getElementById('splash-layer');
             if (splash) {
@@ -177,16 +173,16 @@ class GameApp {
             }
         }, 1800);
 
+        // Arrancar el loop de render (siempre corre, dibuja según gameActive)
         this.loop();
     }
 
     resize() {
         const wrapper = this.canvas.parentElement;
-        if (wrapper) {
-            this.canvas.width = wrapper.clientWidth;
-            this.canvas.height = wrapper.clientHeight;
-            this.spacing = Math.max(18, Math.min(30, this.canvas.height / 14));
-        }
+        this.canvas.width = wrapper.clientWidth;
+        this.canvas.height = wrapper.clientHeight;
+        // Recalcular spacing según altura disponible
+        this.spacing = Math.max(18, Math.min(30, this.canvas.height / 14));
     }
 
     async preloadHeads() {
@@ -199,75 +195,76 @@ class GameApp {
         await Promise.all(p);
     }
 
+    // ==========================================
+    // AUTENTICACIÓN
+    // ==========================================
     setupAuthUI() {
         const toggleBtn = document.getElementById('auth-toggle-btn');
         const userInput = document.getElementById('auth-username');
         const passwordInput = document.getElementById('auth-password');
         const primaryBtn = document.getElementById('auth-primary-btn');
 
-        if (toggleBtn) {
-            toggleBtn.addEventListener('click', () => {
-                this.isAuthRegister = !this.isAuthRegister;
-                document.getElementById('auth-title').innerText = this.isAuthRegister ? "CREAR CUENTA" : "INICIAR SESIÓN";
+        toggleBtn.addEventListener('click', () => {
+            this.isAuthRegister = !this.isAuthRegister;
+            document.getElementById('auth-title').innerText = this.isAuthRegister ? "CREAR CUENTA" : "INICIAR SESIÓN";
+            primaryBtn.innerText = this.isAuthRegister ? "Registrar" : "Entrar";
+            toggleBtn.innerText = this.isAuthRegister
+                ? "¿Ya tienes cuenta? Inicia Sesión"
+                : "¿No tienes cuenta? Regístrate";
+        });
+
+        primaryBtn.addEventListener('click', async () => {
+            const username = userInput.value.trim();
+            const password = passwordInput.value;
+
+            if (!username || !password) {
+                this.showNotif("Por favor, completa todos los campos.", 'warn');
+                return;
+            }
+            if (password.length < 6) {
+                this.showNotif("La contraseña debe tener al menos 6 caracteres.", 'warn');
+                return;
+            }
+
+            // Convertir usuario a correo sintético para Firebase Auth
+            const cleanUsername = username.replace(/\s+/g, '').toLowerCase();
+            const virtualEmail = `${cleanUsername}@notaventuras.internal`;
+
+            primaryBtn.disabled = true;
+            primaryBtn.innerText = "Procesando...";
+
+            try {
+                if (this.isAuthRegister) {
+                    const cred = await createUserWithEmailAndPassword(auth, virtualEmail, password);
+                    await setDoc(doc(db, "users", cred.user.uid), {
+                        uid: cred.user.uid,
+                        username: username,
+                        highScore: 0,
+                        selectedHead: 'nota'
+                    });
+                } else {
+                    await signInWithEmailAndPassword(auth, virtualEmail, password);
+                }
+                userInput.value = "";
+                passwordInput.value = "";
+                // El onAuthStateChanged se encarga del resto
+            } catch (err) {
+                let msg = "Ocurrió un problema inesperado.";
+                if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password" || err.code === "auth/user-not-found") {
+                    msg = "Usuario o contraseña incorrectos.";
+                } else if (err.code === "auth/email-already-in-use") {
+                    msg = "Ese nombre de usuario ya está registrado.";
+                } else if (err.code === "auth/network-request-failed") {
+                    msg = "Sin conexión a internet.";
+                } else {
+                    msg = err.message;
+                }
+                this.showNotif(`Error: ${msg}`, 'error');
+            } finally {
+                primaryBtn.disabled = false;
                 primaryBtn.innerText = this.isAuthRegister ? "Registrar" : "Entrar";
-                toggleBtn.innerText = this.isAuthRegister
-                    ? "¿Ya tienes cuenta? Inicia Sesión"
-                    : "¿No tienes cuenta? Regístrate";
-            });
-        }
-
-        if (primaryBtn) {
-            primaryBtn.addEventListener('click', async () => {
-                const username = userInput.value.trim();
-                const password = passwordInput.value;
-
-                if (!username || !password) {
-                    this.showNotif("Por favor, completa todos los campos.", 'warn');
-                    return;
-                }
-                if (password.length < 6) {
-                    this.showNotif("La contraseña debe tener al menos 6 caracteres.", 'warn');
-                    return;
-                }
-
-                const cleanUsername = username.replace(/\s+/g, '').toLowerCase();
-                const virtualEmail = `${cleanUsername}@notaventuras.internal`;
-
-                primaryBtn.disabled = true;
-                primaryBtn.innerText = "Procesando...";
-
-                try {
-                    if (this.isAuthRegister) {
-                        const cred = await createUserWithEmailAndPassword(auth, virtualEmail, password);
-                        await setDoc(doc(db, "users", cred.user.uid), {
-                            uid: cred.user.uid,
-                            username: username,
-                            highScore: 0,
-                            selectedHead: 'nota'
-                        });
-                    } else {
-                        await signInWithEmailAndPassword(auth, virtualEmail, password);
-                    }
-                    userInput.value = "";
-                    passwordInput.value = "";
-                } catch (err) {
-                    let msg = "Ocurrió un problema inesperado.";
-                    if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password" || err.code === "auth/user-not-found") {
-                        msg = "Usuario o contraseña incorrectos.";
-                    } else if (err.code === "auth/email-already-in-use") {
-                        msg = "Ese nombre de usuario ya está registrado.";
-                    } else if (err.code === "auth/network-request-failed") {
-                        msg = "Sin conexión a internet.";
-                    } else {
-                        msg = err.message;
-                    }
-                    this.showNotif(`Error: ${msg}`, 'error');
-                } finally {
-                    primaryBtn.disabled = false;
-                    primaryBtn.innerText = this.isAuthRegister ? "Registrar" : "Entrar";
-                }
-            });
-        }
+            }
+        });
 
         document.getElementById('auth-guest-btn').addEventListener('click', () => {
             this.isGuest = true;
@@ -289,6 +286,9 @@ class GameApp {
         });
     }
 
+    // ==========================================
+    // MENÚ Y NAVEGACIÓN
+    // ==========================================
     setupMenuEvents() {
         document.querySelectorAll('.menu-btn[data-mode]').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -326,6 +326,9 @@ class GameApp {
         });
     }
 
+    // ==========================================
+    // RANKING
+    // ==========================================
     async showRanking() {
         const container = document.getElementById('leaderboard-container');
         container.innerHTML = '<div style="text-align:center;padding:20px;color:#41E1FA;">Consultando Firestore...</div>';
@@ -341,11 +344,10 @@ class GameApp {
                 const data = d.data();
                 const medal = medals[pos - 1] || `#${pos}`;
                 const isMe = this.user && d.id === this.user.uid;
-                const scoreVal = data.highScore !== undefined ? data.highScore : 0;
                 container.innerHTML += `
                     <div class="ranking-item ${isMe ? 'ranking-me' : ''}">
-                        <span>${medal} ${data.username || 'Anonimo'}${isMe ? ' (tú)' : ''}</span>
-                        <span style="color:#FFD700;font-weight:bold;">${scoreVal.toLocaleString()} pts</span>
+                        <span>${medal} ${data.username}${isMe ? ' (tú)' : ''}</span>
+                        <span style="color:#FFD700;font-weight:bold;">${data.highScore.toLocaleString()} pts</span>
                     </div>`;
                 pos++;
             });
@@ -357,10 +359,11 @@ class GameApp {
         }
     }
 
+    // ==========================================
+    // PERSONALIZADOR DE AVATARES
+    // ==========================================
     buildCustomizerGrid() {
         const grid = document.getElementById('heads-grid');
-        if (!grid) return;
-        grid.innerHTML = '';
         this.heads.forEach(h => {
             const item = document.createElement('div');
             item.className = `head-item ${this.state.selectedHead === h ? 'selected' : ''}`;
@@ -370,6 +373,7 @@ class GameApp {
             th.width = 50; th.height = 50;
             const tc = th.getContext('2d');
 
+            // Renderizar miniatura una vez que imágenes estén listas
             const renderThumb = () => {
                 tc.clearRect(0, 0, 50, 50);
                 if (this.images[h]) {
@@ -380,6 +384,7 @@ class GameApp {
                 }
             };
 
+            // Intentar inmediatamente, y también tras un delay por si las imágenes tardan
             renderThumb();
             setTimeout(renderThumb, 300);
 
@@ -391,13 +396,16 @@ class GameApp {
                 if (this.user && !this.isGuest) {
                     try {
                         await updateDoc(doc(db, "users", this.user.uid), { selectedHead: h });
-                    } catch (e) { }
+                    } catch (e) { /* silencioso */ }
                 }
             });
             grid.appendChild(item);
         });
     }
 
+    // ==========================================
+    // LÓGICA DE NIVEL
+    // ==========================================
     startLevel(lvl) {
         this.state.level = lvl;
         this.currentIndex = 0;
@@ -420,15 +428,18 @@ class GameApp {
         this.updateHUD();
     }
 
+    // ==========================================
+    // CONTROLES DE INTERACCIÓN
+    // ==========================================
     buildInputDock() {
         const dock = document.getElementById('interaction-dock');
-        if (!dock) return;
         dock.innerHTML = '';
 
         const isMobile = window.innerWidth < 768;
         const pianoMode = (this.state.subMode === 'mixtas') && !isMobile;
 
         if (pianoMode) {
+            // Piano en escritorio para modo mixto
             const p = document.createElement('div');
             p.className = 'piano-container';
             const keys = this.state.subMode === 'agudas'
@@ -443,6 +454,7 @@ class GameApp {
             });
             dock.appendChild(p);
         } else {
+            // Botones para cualquier otro modo
             const c = document.createElement('div');
             c.className = 'botones-container';
             ['DO','RE','MI','FA','SOL','LA','SI'].forEach(n => {
@@ -484,14 +496,17 @@ class GameApp {
             this.state.combo = 0;
         }
 
+        // Precisión basada en notas procesadas
         const checked = this.levelNotes.filter(n => n.status !== 'pending').length;
         const hits = this.levelNotes.filter(n => n.status === 'hit').length;
         this.state.accuracy = checked > 0 ? Math.round((hits / checked) * 100) : 100;
         this.updateHUD();
 
+        // En móvil: mostrar feedback visual antes de avanzar
         const isMobile = window.innerWidth < 768;
         if (isMobile) {
             this.feedbackState = { result: isCorrect ? 'hit' : 'miss', timer: this.FEEDBACK_FRAMES };
+            // El avance lo gestiona el loop al terminar el timer
         } else {
             this.currentIndex++;
             this.isProcessing = false;
@@ -512,18 +527,16 @@ class GameApp {
             try {
                 const userRef = doc(db, "users", this.user.uid);
                 const snap = await getDoc(userRef);
-                if (snap.exists()) {
-                    const currentHighScore = snap.data().highScore !== undefined ? snap.data().highScore : 0;
-                    if (this.state.score > currentHighScore) {
-                        await updateDoc(userRef, { highScore: this.state.score });
-                        document.getElementById('user-welcome').innerText =
-                            `Sesión: ${snap.data().username || 'Usuario'} (Récord: ${this.state.score} pts)`;
-                    }
+                if (snap.exists() && this.state.score > snap.data().highScore) {
+                    await updateDoc(userRef, { highScore: this.state.score });
+                    document.getElementById('user-welcome').innerText =
+                        `Sesión: ${snap.data().username} (Récord: ${this.state.score} pts)`;
                 }
-            } catch (e) { }
+            } catch (e) { /* conexión fallida, continuar */ }
         }
     }
 
+    // Notificación flotante que reemplaza alert()
     showLevelEndModal() {
         const hits = this.levelNotes.filter(n => n.status === 'hit').length;
         const msg = `🎵 ¡Nivel ${this.state.level} completado!\n✅ Aciertos: ${hits}/20 · 🎯 ${this.state.accuracy}% precisión\n⭐ Puntaje: ${this.state.score.toLocaleString()} pts`;
@@ -542,6 +555,9 @@ class GameApp {
         document.getElementById('hud-accuracy').innerText = this.state.accuracy;
     }
 
+    // ==========================================
+    // SISTEMA DE NOTIFICACIONES (reemplaza alert)
+    // ==========================================
     showNotif(msg, type = 'info', duration = 2500, onClose = null) {
         let notif = document.getElementById('game-notif');
         if (!notif) {
@@ -571,6 +587,7 @@ class GameApp {
         notif.innerText = msg;
         notif.style.display = 'block';
 
+        // Añadir keyframe si no existe
         if (!document.getElementById('notif-style')) {
             const s = document.createElement('style');
             s.id = 'notif-style';
@@ -585,6 +602,9 @@ class GameApp {
         }, duration);
     }
 
+    // ==========================================
+    // RENDER LOOP
+    // ==========================================
     loop() {
         requestAnimationFrame(() => this.loop());
         const ctx = this.ctx;
@@ -592,6 +612,7 @@ class GameApp {
         const H = this.canvas.height;
         ctx.clearRect(0, 0, W, H);
 
+        // Fondo degradado sutil del canvas
         const bg = ctx.createLinearGradient(0, 0, 0, H);
         bg.addColorStop(0, 'rgba(11,19,43,0.6)');
         bg.addColorStop(1, 'rgba(28,37,65,0.3)');
@@ -599,6 +620,7 @@ class GameApp {
         ctx.fillRect(0, 0, W, H);
 
         if (!this.gameActive || this.levelNotes.length === 0) {
+            // Pantalla vacía con pentagrama decorativo
             this.drawStaff(W, H);
             return;
         }
@@ -606,6 +628,7 @@ class GameApp {
         const isMobile = window.innerWidth < 768;
         const midY = H / 2;
 
+        // ---- GESTIÓN DEL TIMER DE FEEDBACK EN MÓVIL ----
         if (isMobile && this.feedbackState) {
             this.feedbackState.timer--;
             if (this.feedbackState.timer <= 0) {
@@ -617,9 +640,13 @@ class GameApp {
             }
         }
 
+        // 1. DIBUJAR PENTAGRAMA
         this.drawStaff(W, H);
+
+        // 2. DIBUJAR CLAVE DE SOL
         this.drawTrebleClef(midY);
 
+        // 3. RENDERIZADO CONDICIONAL
         if (isMobile) {
             this.renderMobile(midY, W);
         } else {
@@ -641,12 +668,14 @@ class GameApp {
     }
 
     drawTrebleClef(midY) {
+        // Clave de Sol simplificada como texto Unicode (escala con spacing)
         const size = this.spacing * 4.5;
         this.ctx.font = `${size}px serif`;
         this.ctx.fillStyle = 'rgba(255,255,255,0.75)';
         this.ctx.fillText('𝄞', 35, midY + this.spacing * 2.8);
     }
 
+    // --- MODO MÓVIL: 1 NOTA A LA VEZ CON FEEDBACK VISUAL ---
     renderMobile(midY, W) {
         if (this.currentIndex >= this.levelNotes.length) return;
 
@@ -655,6 +684,7 @@ class GameApp {
         const x = W / 2;
         const y = midY - (data.offset * (this.spacing / 2));
 
+        // Halo de la nota activa
         this.ctx.fillStyle = 'rgba(65, 225, 250, 0.1)';
         this.ctx.beginPath();
         this.ctx.arc(x, midY, this.spacing * 3.5, 0, Math.PI * 2);
@@ -663,6 +693,7 @@ class GameApp {
         this.drawLedgerLines(x, data.offset, midY);
         this.drawNoteheadAsset(x, y, this.state.selectedHead);
 
+        // Feedback visual superpuesto
         if (this.feedbackState) {
             const alpha = Math.min(1, this.feedbackState.timer / 15);
             if (this.feedbackState.result === 'hit') {
@@ -684,6 +715,7 @@ class GameApp {
                 this.ctx.font = `bold ${this.spacing * 2.5}px sans-serif`;
                 this.ctx.textAlign = 'center';
                 this.ctx.fillText('✗', x, midY - this.spacing * 4);
+                // Mostrar la nota correcta
                 this.ctx.font = `${this.spacing * 0.9}px 'Fredoka One', sans-serif`;
                 this.ctx.fillStyle = `rgba(255, 215, 0, ${alpha})`;
                 this.ctx.fillText(`Era: ${NOTE_MAP[activeNote.key].name}`, x, midY + this.spacing * 5);
@@ -692,9 +724,10 @@ class GameApp {
         }
     }
 
+    // --- MODO ESCRITORIO: 10 NOTAS CON INDICADORES ---
     renderDesktop(midY, W) {
         let startBatch = Math.floor(this.currentIndex / 10) * 10;
-        const clefOffset = 90; 
+        const clefOffset = 90; // Espacio para la clave de sol
         const usableW = W - clefOffset - 30;
         const trackWidth = usableW / 11;
 
@@ -707,6 +740,7 @@ class GameApp {
             const x = clefOffset + trackWidth * (i + 1);
             const y = midY - (data.offset * (this.spacing / 2));
 
+            // Halo de nota activa
             if (targetNoteIndex === this.currentIndex) {
                 const pulse = 0.1 + 0.05 * Math.sin(Date.now() / 200);
                 this.ctx.fillStyle = `rgba(65, 225, 250, ${pulse})`;
@@ -715,11 +749,13 @@ class GameApp {
                 this.ctx.fill();
             }
 
+            // Nota con opacidad reducida si ya fue respondida
             this.ctx.globalAlpha = noteItem.status !== 'pending' ? 0.45 : 1.0;
             this.drawLedgerLines(x, data.offset, midY);
             this.drawNoteheadAsset(x, y, this.state.selectedHead);
             this.ctx.globalAlpha = 1.0;
 
+            // Indicadores de resultado
             const iconY = midY - (this.spacing * 3.2);
             if (noteItem.status === 'hit') {
                 this.ctx.fillStyle = '#2ECC71';
@@ -733,6 +769,7 @@ class GameApp {
                 this.ctx.fillText('✗', x, iconY);
             }
 
+            // Número de posición debajo
             this.ctx.fillStyle = 'rgba(255,255,255,0.25)';
             this.ctx.font = `${this.spacing * 0.55}px 'Nunito', sans-serif`;
             this.ctx.textAlign = 'center';
@@ -741,20 +778,35 @@ class GameApp {
         }
     }
 
+    // ==========================================
+    // HELPERS DE DIBUJO
+    // ==========================================
     drawLedgerLines(x, offset, midY) {
         this.ctx.strokeStyle = 'rgba(255,255,255,0.85)';
         this.ctx.lineWidth = 2;
+        // Línea adicional inferior (DO central - C4)
         if (offset <= -6) {
             const ly = midY + (3 * this.spacing);
-            this.ctx.beginPath(); this.ctx.moveTo(x - 22, ly); this.ctx.lineTo(x + 22, ly); this.ctx.stroke();
+            this.ctx.beginPath();
+            this.ctx.moveTo(x - 22, ly);
+            this.ctx.lineTo(x + 22, ly);
+            this.ctx.stroke();
         }
+        // Línea adicional superior (LA5, SI5)
         if (offset >= 6) {
             const ly = midY - (3 * this.spacing);
-            this.ctx.beginPath(); this.ctx.moveTo(x - 22, ly); this.ctx.lineTo(x + 22, ly); this.ctx.stroke();
+            this.ctx.beginPath();
+            this.ctx.moveTo(x - 22, ly);
+            this.ctx.lineTo(x + 22, ly);
+            this.ctx.stroke();
         }
+        // Segunda línea adicional (SI5 - offset 7)
         if (offset >= 7) {
             const ly = midY - (3.5 * this.spacing);
-            this.ctx.beginPath(); this.ctx.moveTo(x - 22, ly); this.ctx.lineTo(x + 22, ly); this.ctx.stroke();
+            this.ctx.beginPath();
+            this.ctx.moveTo(x - 22, ly);
+            this.ctx.lineTo(x + 22, ly);
+            this.ctx.stroke();
         }
     }
 
@@ -766,6 +818,7 @@ class GameApp {
             const targetW = (img.naturalWidth || 300) * factor;
             this.ctx.drawImage(img, x - (targetW / 2), y - (targetH / 2), targetW, targetH);
         } else {
+            // Fallback: elipse estilo nota musical
             this.ctx.fillStyle = '#41E1FA';
             this.ctx.beginPath();
             this.ctx.ellipse(x, y, this.spacing * 0.6, this.spacing * 0.45, -0.2, 0, Math.PI * 2);
@@ -777,4 +830,7 @@ class GameApp {
     }
 }
 
+// ==========================================
+// PUNTO DE ENTRADA
+// ==========================================
 document.addEventListener('DOMContentLoaded', () => { (new GameApp()).init(); });

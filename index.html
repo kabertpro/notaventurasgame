@@ -11,26 +11,30 @@
 
     <div id="app-viewport">
         
+        <!-- PANTALLA SPLASH -->
         <div id="splash-layer" class="splash-container">
             <h1 class="splash-title">NOTAVENTURAS GAME</h1>
             <p class="splash-subtitle">KABERT STUDIO – LMKE</p>
             <div class="loading-bar"><div class="progress"></div></div>
         </div>
 
-        <div id="auth-layer" class="screen-overlay hidden">
-            <div class="menu-card">
-                <h2 id="auth-title">INICIAR SESIÓN</h2>
-                <div class="auth-form">
-                    <input type="text" id="auth-username" placeholder="Nombre de Usuario" class="auth-input">
-                    <input type="password" id="auth-password" placeholder="Contraseña" class="auth-input">
-                    <button class="menu-btn" id="auth-primary-btn">Entrar</button>
-                    <button class="menu-btn" id="auth-toggle-btn">¿No tienes cuenta? Regístrate</button>
-                    <hr style="border: 1px solid rgba(255,255,255,0.1); margin: 15px 0;">
-                    <button class="menu-btn guest" id="auth-guest-btn">Jugar como Invitado</button>
-                </div>
-            </div>
-        </div>
+		<!-- CAPA DE AUTENTICACIÓN (ACTUALIZADA PARA SOLO USUARIO) -->
+		<div id="auth-layer" class="screen-overlay hidden">
+			<div class="menu-card">
+				<h2 id="auth-title">INICIAR SESIÓN</h2>
+				<div class="auth-form">
+					<!-- Este campo ahora sirve tanto para iniciar sesión como para registrarse -->
+					<input type="text" id="auth-username" placeholder="Nombre de Usuario" class="auth-input">
+					<input type="password" id="auth-password" placeholder="Contraseña" class="auth-input">
+					<button class="menu-btn" id="auth-primary-btn">Entrar</button>
+					<button class="menu-btn toggle" id="auth-toggle-btn">¿No tienes cuenta? Regístrate</button>
+					<hr style="border: 1px solid rgba(255,255,255,0.1); margin: 15px 0;">
+					<button class="menu-btn guest" id="auth-guest-btn">Jugar como Invitado</button>
+				</div>
+			</div>
+		</div>
 
+        <!-- MENÚ PRINCIPAL -->
         <div id="menu-layer" class="screen-overlay hidden">
             <div class="menu-card">
                 <h2>NOTAVENTURAS</h2>
@@ -46,6 +50,7 @@
             </div>
         </div>
 
+        <!-- MODAL DE RANKING GLOBAL -->
         <div id="ranking-layer" class="screen-overlay hidden">
             <div class="menu-card">
                 <h2>RANKING GLOBAL</h2>
@@ -54,6 +59,7 @@
             </div>
         </div>
 
+        <!-- MODAL DE PERSONALIZACIÓN -->
         <div id="custom-layer" class="screen-overlay hidden">
             <div class="menu-card">
                 <h2>AVATARES DISPONIBLES</h2>
@@ -62,6 +68,7 @@
             </div>
         </div>
 
+        <!-- HUD SUPERIOR -->
         <header id="game-hud">
             <div class="hud-item">NIVEL: <span id="hud-level">1</span></div>
             <div class="hud-item">NOTA: <span id="hud-note-count">1/20</span></div>
@@ -71,14 +78,17 @@
             <button id="menu-back-btn" class="hud-back hidden">Abandonar</button>
         </header>
 
+        <!-- LIENZO DEL MOTOR GRÁFICO -->
         <main id="canvas-wrapper">
             <canvas id="gameCanvas"></canvas>
         </main>
 
+        <!-- MUELLE DE INTERACCIÓN -->
         <footer id="interaction-dock"></footer>
 
     </div>
 
+    <!-- Carga del script unificado mediante módulos ES6 -->
     <script type="module" src="js/game.js"></script>
 </body>
 </html>
