@@ -444,7 +444,7 @@ class GameApp {
             p.className = 'piano-container';
             const keys = this.state.subMode === 'agudas'
                 ? ['C5','D5','E5','F5','G5','A5','B5']
-                : ['C4','D4','E4','F4','G4','A4','B4','C5','D5','E5'];
+                : ['C4','D4','E4','F4','G4','A4','B4','C5','D5','E5','F5','G5','A5','B5'];
             keys.forEach(k => {
                 const key = document.createElement('div');
                 key.className = 'piano-key';
@@ -489,7 +489,7 @@ class GameApp {
             this.audio.feedback(true);
             currentNote.status = 'hit';
             this.state.combo++;
-            this.state.score += (100 * this.state.combo * this.state.level);
+            this.state.score += (10 * this.state.combo * this.state.level);
         } else {
             this.audio.feedback(false);
             currentNote.status = 'miss';
